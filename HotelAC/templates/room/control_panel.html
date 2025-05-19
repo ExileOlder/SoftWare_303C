@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>空调控制面板 - 波特普大学快捷廉价酒店</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+  <link rel="stylesheet" href="../../static/css/main.css">
+  <link rel="stylesheet" href="../../static/css/room.css">
+  <style>
+    body {
+      background-image: url('../../static/img/control_panel.png');
+      background-size: cover;
+      background-position: center;
+      background-repeat: no-repeat;
+      background-attachment: fixed;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="ac-control-panel" id="acControlPanel">
+      <div class="ac-room-info">
+        <h2 class="ac-room-number" id="roomNumber">房间号: {{ room_number }}</h2>
+      </div>
+      
+      <div class="ac-display">
+        <div class="ac-temperature">
+          <span id="currentTemp">25</span>
+          <span class="ac-temperature-unit">°C</span>
+        </div>
+        <div class="ac-status">
+          <div class="ac-status-item">
+            <div class="ac-status-item-label">目标温度</div>
+            <div class="ac-status-item-value" id="targetTemp">25°C</div>
+          </div>
+          <div class="ac-status-item">
+            <div class="ac-status-item-label">模式</div>
+            <div class="ac-status-item-value" id="modeDisplay">制冷</div>
+          </div>
+          <div class="ac-status-item">
+            <div class="ac-status-item-label">风速</div>
+            <div class="ac-status-item-value" id="fanSpeedDisplay">中风</div>
+          </div>
+          <div class="ac-status-item">
+            <div class="ac-status-item-label">状态</div>
+            <div class="ac-status-item-value" id="serviceStatus">等待中</div>
+          </div>
+        </div>
+      </div>
+      
+      <div class="ac-controls">
+        <button class="ac-control-btn ac-power-btn" id="powerBtn" data-status="off">
+          <i class="bi bi-power"></i>
+          <span>开机</span>
+        </button>
+        
+        <button class="ac-control-btn ac-temp-btn" id="tempUpBtn">
+          <i class="bi bi-chevron-up"></i>
+          <span>升温</span>
+        </button>
+        
+        <button class="ac-control-btn ac-temp-btn" id="tempDownBtn">
+          <i class="bi bi-chevron-down"></i>
+          <span>降温</span>
+        </button>
+        
+        <button class="ac-control-btn ac-mode-btn" id="modeBtn" data-mode="cooling">
+          <i class="bi bi-snow"></i>
+          <span>模式: 制冷</span>
+        </button>
+      </div>
+      
+      <div class="ac-fan-speed">
+        <button class="ac-fan-speed-btn" data-speed="low">低速</button>
+        <button class="ac-fan-speed-btn active" data-speed="medium">中速</button>
+        <button class="ac-fan-speed-btn" data-speed="high">高速</button>
+      </div>
+      
+      <div class="ac-cost-display">
+        <div class="ac-status-item-label">当前费用</div>
+        <div class="ac-cost-value">¥<span id="costValue">0.00</span></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // 这里将使用Vue.js或原生JavaScript实现前端逻辑
+    // 为了前后端分离，这里只提供前端框架和API调用示例
+
+    document.addEventListener('DOMContentLoaded', function() {
+      // 空调控制器对象
+      const acController = {
+        // 系统参数
+        params: {
+          roomNumber: '{{ room_number }}',
+          power: false,
+          currentTemp: 25,
+          targetTemp: 25,
+          mode: 'cooling', // cooling or heating
+          fanSpeed: 'medium', // low, medium, high
+          serviceStatus: 'waiting', // waiting, serving
+          cost: 0
+        },
+        
+        // 初始化
+        init: function() {
+          this.updateDisplay();
+          this.setupEventListeners();
+          this.connectWebSocket();
+        },
+        
+        // 更新显示
+        updateDisplay: function() {
+          document.getElementById('roomNumber').textContent = '房间号: ' + this.params.roomNumber;
+          document.getElementById('currentTemp').textContent = this.params.currentTemp;
+          document.getElementById('targetTemp').textContent = this.params.targetTemp + '°C';
+          document.getElementById('modeDisplay').textContent = this.params.mode === 'cooling' ? '制冷' : '制热';
+          document.getElementById('fanSpeedDisplay').textContent = 
+            this.params.fanSpeed === 'low' ? '低风' : 
+            this.params.fanSpeed === 'medium' ? '中风' : '高风';
+          document.getElementById('serviceStatus').textContent = 
+            this.params.serviceStatus === 'waiting' ? '等待中' : '服务中';
+          document.getElementById('costValue').textContent = this.params.cost.toFixed(2);
+          
+          // 电源按钮状态
+          const powerBtn = document.getElementById('powerBtn');
+          powerBtn.setAttribute('data-status', this.params.power ? 'on' : 'off');
+          powerBtn.querySelector('span').textContent = this.params.power ? '关机' : '开机';
+          
+          // 模式按钮
+          const modeBtn = document.getElementById('modeBtn');
+          modeBtn.setAttribute('data-mode', this.params.mode);
+          modeBtn.querySelector('i').className = this.params.mode === 'cooling' ? 'bi bi-snow' : 'bi bi-sun';
+          modeBtn.querySelector('span').textContent = '模式: ' + (this.params.mode === 'cooling' ? '制冷' : '制热');
+          
+          // 风速按钮
+          document.querySelectorAll('.ac-fan-speed-btn').forEach(btn => {
+            btn.classList.remove('active');
+            if (btn.getAttribute('data-speed') === this.params.fanSpeed) {
+              btn.classList.add('active');
+            }
+          });
+        },
+        
+        // 设置事件监听
+        setupEventListeners: function() {
+          // 电源按钮
+          document.getElementById('powerBtn').addEventListener('click', () => {
+            this.togglePower();
+          });
+          
+          // 温度控制按钮
+          document.getElementById('tempUpBtn').addEventListener('click', () => {
+            this.adjustTemperature(1);
+          });
+          
+          document.getElementById('tempDownBtn').addEventListener('click', () => {
+            this.adjustTemperature(-1);
+          });
+          
+          // 模式按钮
+          document.getElementById('modeBtn').addEventListener('click', () => {
+            this.toggleMode();
+          });
+          
+          // 风速按钮
+          document.querySelectorAll('.ac-fan-speed-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+              const speed = e.target.getAttribute('data-speed');
+              this.setFanSpeed(speed);
+            });
+          });
+        },
+        
+        // WebSocket连接
+        connectWebSocket: function() {
+          // 实际实现中，这里会连接到Django Channels的WebSocket
+          console.log('建立WebSocket连接...');
+          
+          // 模拟定时更新，实际项目中应该使用WebSocket接收实时数据
+          setInterval(() => {
+            // 模拟温度变化
+            if (this.params.power && this.params.serviceStatus === 'serving') {
+              let tempChange = 0;
+              
+              if (this.params.mode === 'cooling') {
+                // 制冷模式，温度下降
+                if (this.params.currentTemp > this.params.targetTemp) {
+                  tempChange = this.params.fanSpeed === 'high' ? -0.6 : 
+                              this.params.fanSpeed === 'medium' ? -0.5 : -0.4;
+                }
+              } else {
+                // 制热模式，温度上升
+                if (this.params.currentTemp < this.params.targetTemp) {
+                  tempChange = this.params.fanSpeed === 'high' ? 0.6 : 
+                              this.params.fanSpeed === 'medium' ? 0.5 : 0.4;
+                }
+              }
+              
+              // 更新温度和费用
+              if (tempChange !== 0) {
+                this.params.currentTemp = parseFloat((this.params.currentTemp + tempChange).toFixed(1));
+                // 计算费用
+                let costIncrease = 0;
+                if (this.params.fanSpeed === 'high') {
+                  costIncrease = 1/60; // 高风 1度/分钟，每秒1/60度
+                } else if (this.params.fanSpeed === 'medium') {
+                  costIncrease = 1/120; // 中风 1度/2分钟，每秒1/120度
+                } else {
+                  costIncrease = 1/180; // 低风 1度/3分钟，每秒1/180度
+                }
+                this.params.cost += costIncrease;
+                
+                // 判断是否达到目标温度
+                if ((this.params.mode === 'cooling' && this.params.currentTemp <= this.params.targetTemp) ||
+                    (this.params.mode === 'heating' && this.params.currentTemp >= this.params.targetTemp)) {
+                  this.sendStopRequest();
+                }
+              }
+            } else if (!this.params.power) {
+              // 关机状态下温度逐渐恢复到初始温度
+              if (this.params.currentTemp !== 25) {
+                this.params.currentTemp = this.params.currentTemp < 25 ? 
+                  parseFloat((this.params.currentTemp + 0.1).toFixed(1)) : 
+                  parseFloat((this.params.currentTemp - 0.1).toFixed(1));
+              }
+            }
+            
+            this.updateDisplay();
+          }, 1000); // 每秒更新一次
+        },
+        
+        // 切换电源
+        togglePower: function() {
+          this.params.power = !this.params.power;
+          
+          if (this.params.power) {
+            // 开机
+            console.log('发送开机请求');
+            this.sendRequest({
+              action: 'power_on',
+              target_temp: this.params.targetTemp,
+              mode: this.params.mode,
+              fan_speed: this.params.fanSpeed
+            });
+          } else {
+            // 关机
+            console.log('发送关机请求');
+            this.sendRequest({
+              action: 'power_off'
+            });
+            this.params.serviceStatus = 'waiting';
+          }
+          
+          this.updateDisplay();
+        },
+        
+        // 调整温度
+        adjustTemperature: function(change) {
+          if (!this.params.power) return;
+          
+          let newTemp = this.params.targetTemp + change;
+          
+          // 温度范围限制
+          if (this.params.mode === 'cooling') {
+            // 制冷模式：18-25度
+            newTemp = Math.max(18, Math.min(25, newTemp));
+          } else {
+            // 制热模式：25-30度
+            newTemp = Math.max(25, Math.min(30, newTemp));
+          }
+          
+          if (newTemp !== this.params.targetTemp) {
+            this.params.targetTemp = newTemp;
+            console.log(`调整温度至${newTemp}度`);
+            
+            this.sendRequest({
+              action: 'adjust_temperature',
+              target_temp: this.params.targetTemp
+            });
+            
+            this.updateDisplay();
+          }
+        },
+        
+        // 切换模式
+        toggleMode: function() {
+          if (!this.params.power) return;
+          
+          this.params.mode = this.params.mode === 'cooling' ? 'heating' : 'cooling';
+          
+          // 调整目标温度到合适范围
+          if (this.params.mode === 'cooling') {
+            if (this.params.targetTemp > 25) this.params.targetTemp = 25;
+          } else {
+            if (this.params.targetTemp < 25) this.params.targetTemp = 25;
+          }
+          
+          console.log(`切换到${this.params.mode === 'cooling' ? '制冷' : '制热'}模式`);
+          
+          this.sendRequest({
+            action: 'change_mode',
+            mode: this.params.mode,
+            target_temp: this.params.targetTemp
+          });
+          
+          this.updateDisplay();
+        },
+        
+        // 设置风速
+        setFanSpeed: function(speed) {
+          if (!this.params.power) return;
+          
+          if (this.params.fanSpeed !== speed) {
+            this.params.fanSpeed = speed;
+            console.log(`设置风速为${speed}`);
+            
+            this.sendRequest({
+              action: 'adjust_fan_speed',
+              fan_speed: this.params.fanSpeed
+            });
+            
+            this.updateDisplay();
+          }
+        },
+        
+        // 发送停止请求
+        sendStopRequest: function() {
+          console.log('达到目标温度，发送停止送风请求');
+          this.params.serviceStatus = 'waiting';
+          
+          this.sendRequest({
+            action: 'stop_service',
+            reason: 'target_reached'
+          });
+          
+          this.updateDisplay();
+        },
+        
+        // 发送请求到后端
+        sendRequest: function(data) {
+          // 实际项目中，这里会发送请求到Django后端API
+          const request = {
+            room_number: this.params.roomNumber,
+            timestamp: new Date().toISOString(),
+            ...data
+          };
+          
+          console.log('发送请求:', request);
+          
+          // 模拟接收服务状态更新
+          setTimeout(() => {
+            if (data.action === 'power_on' || data.action === 'adjust_fan_speed') {
+              this.params.serviceStatus = Math.random() > 0.5 ? 'serving' : 'waiting';
+              this.updateDisplay();
+            }
+          }, 500);
+        }
+      };
+      
+      // 初始化空调控制器
+      acController.init();
+    });
+  </script>
+</body>
+</html> 

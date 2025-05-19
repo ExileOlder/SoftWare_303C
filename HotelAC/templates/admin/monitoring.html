@@ -1,0 +1,932 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>空调管理系统 - 管理员监控界面</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+  <link rel="stylesheet" href="../../static/css/main.css">
+  <link rel="stylesheet" href="../../static/css/admin.css">
+  <style>
+    body {
+      background-image: url('../../static/img/monitoring.png');
+      background-size: cover;
+      background-position: center;
+      background-repeat: no-repeat;
+      background-attachment: fixed;
+    }
+    
+    .admin-container {
+      background-color: rgba(255, 255, 255, 0.9);
+      border-radius: 15px;
+      box-shadow: 0 8px 30px rgba(0, 0, 0, 0.2);
+    }
+  </style>
+</head>
+<body>
+  <div class="admin-container">
+    <div class="admin-header">
+      <h1 class="admin-title">空调管理系统 - 管理员监控面板</h1>
+      <div class="admin-controls">
+        <button class="btn" id="settingsBtn"><i class="bi bi-gear"></i> 系统设置</button>
+        <button class="btn btn-success" id="refreshBtn"><i class="bi bi-arrow-clockwise"></i> 刷新数据</button>
+      </div>
+    </div>
+    
+    <div class="dashboard-overview">
+      <div class="overview-card">
+        <div class="overview-card-title">正在使用的房间</div>
+        <div class="overview-card-value" id="activeRooms">3</div>
+        <div class="overview-card-change change-up">
+          <i class="bi bi-arrow-up"></i> 5% 较上小时
+        </div>
+        <div class="overview-icon">
+          <i class="bi bi-house"></i>
+        </div>
+      </div>
+      
+      <div class="overview-card">
+        <div class="overview-card-title">等待队列长度</div>
+        <div class="overview-card-value" id="waitingQueue">2</div>
+        <div class="overview-card-change change-down">
+          <i class="bi bi-arrow-down"></i> 10% 较上小时
+        </div>
+        <div class="overview-icon">
+          <i class="bi bi-hourglass-split"></i>
+        </div>
+      </div>
+      
+      <div class="overview-card">
+        <div class="overview-card-title">当前总功耗</div>
+        <div class="overview-card-value" id="totalPower">4.2<small>kW</small></div>
+        <div class="overview-card-change change-up">
+          <i class="bi bi-arrow-up"></i> 8% 较上小时
+        </div>
+        <div class="overview-icon">
+          <i class="bi bi-lightning"></i>
+        </div>
+      </div>
+      
+      <div class="overview-card">
+        <div class="overview-card-title">今日总收费</div>
+        <div class="overview-card-value" id="totalFee">¥156.8</div>
+        <div class="overview-card-change change-up">
+          <i class="bi bi-arrow-up"></i> 12% 较昨日
+        </div>
+        <div class="overview-icon">
+          <i class="bi bi-currency-yen"></i>
+        </div>
+      </div>
+    </div>
+    
+    <div class="monitoring-section">
+      <div class="monitoring-rooms">
+        <div class="monitoring-rooms-header">
+          <div class="monitoring-rooms-title">房间监控</div>
+          <div class="rooms-filter">
+            <button class="filter-btn active" data-filter="all">全部</button>
+            <button class="filter-btn" data-filter="active">正在服务</button>
+            <button class="filter-btn" data-filter="waiting">等待服务</button>
+            <button class="filter-btn" data-filter="off">未使用</button>
+          </div>
+        </div>
+        
+        <table class="rooms-table" id="roomsTable">
+          <thead>
+            <tr>
+              <th>房间号</th>
+              <th>状态</th>
+              <th>当前温度</th>
+              <th>目标温度</th>
+              <th>模式</th>
+              <th>风速</th>
+              <th>服务时长</th>
+              <th>累计费用</th>
+              <th>操作</th>
+            </tr>
+          </thead>
+          <tbody>
+            <!-- 房间数据将通过JavaScript动态生成 -->
+          </tbody>
+        </table>
+      </div>
+      
+      <div class="queue-section">
+        <h2 class="queue-title">队列管理</h2>
+        
+        <div class="queue-tabs">
+          <div class="queue-tab active" data-queue="service">服务队列</div>
+          <div class="queue-tab" data-queue="waiting">等待队列</div>
+        </div>
+        
+        <div class="queue-content" id="serviceQueueContent">
+          <div class="queue-list" id="serviceQueue">
+            <!-- 服务队列将通过JavaScript动态生成 -->
+          </div>
+        </div>
+        
+        <div class="queue-content" id="waitingQueueContent" style="display: none;">
+          <div class="queue-list" id="waitingQueue">
+            <!-- 等待队列将通过JavaScript动态生成 -->
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <div class="system-params">
+      <h2 class="system-params-title">系统参数</h2>
+      
+      <div class="params-grid">
+        <div class="param-card">
+          <div class="param-name">最大服务房间数</div>
+          <div class="param-value" id="maxServiceRooms">3</div>
+        </div>
+        
+        <div class="param-card">
+          <div class="param-name">等待时间片</div>
+          <div class="param-value" id="waitingTimeSlice">60秒</div>
+        </div>
+        
+        <div class="param-card">
+          <div class="param-name">调度策略</div>
+          <div class="param-value" id="schedulingStrategy">优先级+时间片</div>
+        </div>
+        
+        <div class="param-card">
+          <div class="param-name">温控范围(制冷)</div>
+          <div class="param-value" id="coolingRange">18-25°C</div>
+        </div>
+        
+        <div class="param-card">
+          <div class="param-name">温控范围(制热)</div>
+          <div class="param-value" id="heatingRange">25-30°C</div>
+        </div>
+        
+        <div class="param-card">
+          <div class="param-name">计费标准</div>
+          <div class="param-value" id="feeRate">1元/度</div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- 系统设置模态框 -->
+    <div class="modal" id="settingsModal" style="display: none;">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h2>系统设置</h2>
+          <span class="close-modal">&times;</span>
+        </div>
+        <div class="modal-body">
+          <form class="settings-form">
+            <div class="form-group">
+              <label for="setMaxServiceRooms">最大服务房间数</label>
+              <input type="number" class="form-control" id="setMaxServiceRooms" min="1" value="3">
+            </div>
+            <div class="form-group">
+              <label for="setWaitingTimeSlice">等待时间片(秒)</label>
+              <input type="number" class="form-control" id="setWaitingTimeSlice" min="10" value="60">
+            </div>
+            <div class="form-group">
+              <label for="setSchedulingStrategy">调度策略</label>
+              <select class="form-control" id="setSchedulingStrategy">
+                <option value="priority_timeslice">优先级+时间片</option>
+                <option value="priority_only">仅优先级</option>
+                <option value="timeslice_only">仅时间片</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>温控范围(制冷) °C</label>
+              <div class="range-inputs">
+                <input type="number" class="form-control" id="setCoolingMin" min="16" max="24" value="18">
+                <span>-</span>
+                <input type="number" class="form-control" id="setCoolingMax" min="19" max="25" value="25">
+              </div>
+            </div>
+            <div class="form-group">
+              <label>温控范围(制热) °C</label>
+              <div class="range-inputs">
+                <input type="number" class="form-control" id="setHeatingMin" min="25" max="29" value="25">
+                <span>-</span>
+                <input type="number" class="form-control" id="setHeatingMax" min="26" max="32" value="30">
+              </div>
+            </div>
+            <div class="form-group">
+              <label for="setFeeRate">计费标准(元/度)</label>
+              <input type="number" class="form-control" id="setFeeRate" min="0.1" step="0.1" value="1">
+            </div>
+          </form>
+        </div>
+        <div class="modal-footer">
+          <button class="btn" id="cancelSettingsBtn">取消</button>
+          <button class="btn btn-success" id="saveSettingsBtn">保存设置</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      // 初始化房间数据 (实际项目中应该从API获取)
+      const roomsData = [
+        { 
+          roomNumber: '101', 
+          status: 'active', 
+          currentTemp: 23.5, 
+          targetTemp: 22.0,
+          mode: 'cooling',
+          fanSpeed: 'medium',
+          serviceDuration: '01:25:30',
+          fee: 8.50
+        },
+        { 
+          roomNumber: '102', 
+          status: 'off', 
+          currentTemp: 25.0, 
+          targetTemp: 25.0,
+          mode: null,
+          fanSpeed: null,
+          serviceDuration: '00:00:00',
+          fee: 0.00
+        },
+        { 
+          roomNumber: '103', 
+          status: 'active', 
+          currentTemp: 24.0, 
+          targetTemp: 27.0,
+          mode: 'heating',
+          fanSpeed: 'high',
+          serviceDuration: '00:45:12',
+          fee: 12.75
+        },
+        { 
+          roomNumber: '104', 
+          status: 'off', 
+          currentTemp: 25.0, 
+          targetTemp: 25.0,
+          mode: null,
+          fanSpeed: null,
+          serviceDuration: '00:00:00',
+          fee: 0.00
+        },
+        { 
+          roomNumber: '105', 
+          status: 'waiting', 
+          currentTemp: 23.0, 
+          targetTemp: 22.0,
+          mode: 'cooling',
+          fanSpeed: 'low',
+          serviceDuration: '00:00:00',
+          fee: 0.00
+        },
+        { 
+          roomNumber: '106', 
+          status: 'waiting', 
+          currentTemp: 26.0, 
+          targetTemp: 28.0,
+          mode: 'heating',
+          fanSpeed: 'medium',
+          serviceDuration: '00:00:00',
+          fee: 0.00
+        },
+        { 
+          roomNumber: '107', 
+          status: 'active', 
+          currentTemp: 24.5, 
+          targetTemp: 23.0,
+          mode: 'cooling',
+          fanSpeed: 'high',
+          serviceDuration: '02:10:45',
+          fee: 15.20
+        }
+      ];
+      
+      // 队列数据 (实际项目中应该从API获取)
+      const serviceQueueData = [
+        { 
+          roomNumber: '101', 
+          fanSpeed: 'medium', 
+          startTime: '2023-05-20 10:35',
+          duration: '01:25:30'
+        },
+        { 
+          roomNumber: '103', 
+          fanSpeed: 'high', 
+          startTime: '2023-05-20 11:15',
+          duration: '00:45:12'
+        },
+        { 
+          roomNumber: '107', 
+          fanSpeed: 'high', 
+          startTime: '2023-05-20 09:50',
+          duration: '02:10:45'
+        }
+      ];
+      
+      const waitingQueueData = [
+        { 
+          roomNumber: '105', 
+          fanSpeed: 'low', 
+          requestTime: '2023-05-20 11:45',
+          waitingTime: '00:15:30'
+        },
+        { 
+          roomNumber: '106', 
+          fanSpeed: 'medium', 
+          requestTime: '2023-05-20 11:50',
+          waitingTime: '00:10:15'
+        }
+      ];
+      
+      // 渲染房间表格
+      function renderRoomsTable(filter = 'all') {
+        const tableBody = document.querySelector('#roomsTable tbody');
+        tableBody.innerHTML = '';
+        
+        const filteredRooms = roomsData.filter(room => {
+          if (filter === 'all') return true;
+          return room.status === filter;
+        });
+        
+        filteredRooms.forEach(room => {
+          const row = document.createElement('tr');
+          
+          let statusText = '';
+          let statusClass = '';
+          
+          switch(room.status) {
+            case 'active':
+              statusText = '正在服务';
+              statusClass = 'status-online';
+              break;
+            case 'waiting':
+              statusText = '等待服务';
+              statusClass = 'status-waiting';
+              break;
+            case 'off':
+              statusText = '未使用';
+              statusClass = 'status-offline';
+              break;
+          }
+          
+          let tempClass = '';
+          if (room.currentTemp < 22) tempClass = 'temp-cold';
+          else if (room.currentTemp > 26) tempClass = 'temp-hot';
+          else tempClass = 'temp-normal';
+          
+          row.innerHTML = `
+            <td>${room.roomNumber}</td>
+            <td><span class="status-badge ${statusClass}">${statusText}</span></td>
+            <td>
+              <div class="room-temp">
+                <div class="temp-indicator ${tempClass}"></div>
+                ${room.currentTemp}°C
+              </div>
+            </td>
+            <td>${room.targetTemp}°C</td>
+            <td>${room.mode ? (room.mode === 'cooling' ? '制冷' : '制热') : '-'}</td>
+            <td>${room.fanSpeed ? 
+              (room.fanSpeed === 'low' ? '低风' : 
+               room.fanSpeed === 'medium' ? '中风' : '高风') : 
+              '-'}
+            </td>
+            <td>${room.serviceDuration}</td>
+            <td>¥${room.fee.toFixed(2)}</td>
+            <td>
+              ${room.status !== 'off' ? `
+                <button class="btn btn-sm" title="查看详情"><i class="bi bi-info-circle"></i></button>
+                ${room.status === 'active' ? `
+                  <button class="btn btn-sm btn-danger suspend-btn" data-room="${room.roomNumber}" title="暂停服务">
+                    <i class="bi bi-pause-fill"></i>
+                  </button>
+                ` : room.status === 'waiting' ? `
+                  <button class="btn btn-sm btn-success prioritize-btn" data-room="${room.roomNumber}" title="优先服务">
+                    <i class="bi bi-arrow-up-circle"></i>
+                  </button>
+                ` : ''}
+              ` : '-'}
+            </td>
+          `;
+          
+          tableBody.appendChild(row);
+        });
+        
+        // 添加暂停服务按钮事件
+        document.querySelectorAll('.suspend-btn').forEach(btn => {
+          btn.addEventListener('click', function() {
+            const roomNumber = this.getAttribute('data-room');
+            suspendService(roomNumber);
+          });
+        });
+        
+        // 添加优先服务按钮事件
+        document.querySelectorAll('.prioritize-btn').forEach(btn => {
+          btn.addEventListener('click', function() {
+            const roomNumber = this.getAttribute('data-room');
+            prioritizeService(roomNumber);
+          });
+        });
+      }
+      
+      // 渲染服务队列
+      function renderServiceQueue() {
+        const queueList = document.getElementById('serviceQueue');
+        queueList.innerHTML = '';
+        
+        if (serviceQueueData.length === 0) {
+          queueList.innerHTML = '<div class="queue-empty">服务队列为空</div>';
+          return;
+        }
+        
+        serviceQueueData.forEach(item => {
+          const queueItem = document.createElement('div');
+          queueItem.className = 'queue-item';
+          
+          queueItem.innerHTML = `
+            <div class="queue-item-room">${item.roomNumber}</div>
+            <div class="queue-item-info">
+              <div>风速: ${item.fanSpeed === 'low' ? '低风' : 
+                         item.fanSpeed === 'medium' ? '中风' : '高风'}</div>
+              <div class="queue-item-details">
+                <span>开始时间: ${item.startTime}</span>
+                <span>服务时长: ${item.duration}</span>
+              </div>
+            </div>
+            <button class="btn btn-sm btn-danger" data-room="${item.roomNumber}">
+              <i class="bi bi-x-circle"></i>
+            </button>
+          `;
+          
+          queueList.appendChild(queueItem);
+        });
+        
+        // 添加移除服务按钮事件
+        queueList.querySelectorAll('.btn-danger').forEach(btn => {
+          btn.addEventListener('click', function() {
+            const roomNumber = this.getAttribute('data-room');
+            removeFromServiceQueue(roomNumber);
+          });
+        });
+      }
+      
+      // 渲染等待队列
+      function renderWaitingQueue() {
+        const queueList = document.getElementById('waitingQueue');
+        queueList.innerHTML = '';
+        
+        if (waitingQueueData.length === 0) {
+          queueList.innerHTML = '<div class="queue-empty">等待队列为空</div>';
+          return;
+        }
+        
+        waitingQueueData.forEach(item => {
+          const queueItem = document.createElement('div');
+          queueItem.className = 'queue-item';
+          
+          queueItem.innerHTML = `
+            <div class="queue-item-room">${item.roomNumber}</div>
+            <div class="queue-item-info">
+              <div>风速: ${item.fanSpeed === 'low' ? '低风' : 
+                         item.fanSpeed === 'medium' ? '中风' : '高风'}</div>
+              <div class="queue-item-details">
+                <span>请求时间: ${item.requestTime}</span>
+                <span>等待时长: ${item.waitingTime}</span>
+              </div>
+            </div>
+            <button class="btn btn-sm btn-success" data-room="${item.roomNumber}">
+              <i class="bi bi-arrow-up-circle"></i>
+            </button>
+          `;
+          
+          queueList.appendChild(queueItem);
+        });
+        
+        // 添加优先服务按钮事件
+        queueList.querySelectorAll('.btn-success').forEach(btn => {
+          btn.addEventListener('click', function() {
+            const roomNumber = this.getAttribute('data-room');
+            prioritizeService(roomNumber);
+          });
+        });
+      }
+      
+      // 暂停服务
+      function suspendService(roomNumber) {
+        // 实际项目中，这里会发送API请求暂停服务
+        console.log(`暂停房间 ${roomNumber} 的服务`);
+        
+        // 从服务队列中移除
+        const index = serviceQueueData.findIndex(item => item.roomNumber === roomNumber);
+        if (index !== -1) {
+          const removedItem = serviceQueueData.splice(index, 1)[0];
+          
+          // 添加到等待队列
+          waitingQueueData.push({
+            roomNumber: removedItem.roomNumber,
+            fanSpeed: removedItem.fanSpeed,
+            requestTime: new Date().toLocaleString('zh-CN', {
+              year: 'numeric',
+              month: '2-digit',
+              day: '2-digit',
+              hour: '2-digit',
+              minute: '2-digit'
+            }).replace(/\//g, '-'),
+            waitingTime: '00:00:00'
+          });
+          
+          // 更新房间状态
+          const roomIndex = roomsData.findIndex(room => room.roomNumber === roomNumber);
+          if (roomIndex !== -1) {
+            roomsData[roomIndex].status = 'waiting';
+            roomsData[roomIndex].serviceDuration = '00:00:00';
+          }
+          
+          // 更新显示
+          renderRoomsTable();
+          renderServiceQueue();
+          renderWaitingQueue();
+          updateOverview();
+        }
+      }
+      
+      // 优先服务
+      function prioritizeService(roomNumber) {
+        // 实际项目中，这里会发送API请求设置优先服务
+        console.log(`设置房间 ${roomNumber} 优先服务`);
+        
+        // 从等待队列中移除
+        const index = waitingQueueData.findIndex(item => item.roomNumber === roomNumber);
+        if (index !== -1) {
+          const removedItem = waitingQueueData.splice(index, 1)[0];
+          
+          // 如果服务队列已满，移除一个房间
+          if (serviceQueueData.length >= 3) {
+            const removedService = serviceQueueData.pop();
+            
+            // 将被移除的服务添加到等待队列
+            waitingQueueData.push({
+              roomNumber: removedService.roomNumber,
+              fanSpeed: removedService.fanSpeed,
+              requestTime: new Date().toLocaleString('zh-CN', {
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit'
+              }).replace(/\//g, '-'),
+              waitingTime: '00:00:00'
+            });
+            
+            // 更新被移除房间的状态
+            const removedRoomIndex = roomsData.findIndex(room => room.roomNumber === removedService.roomNumber);
+            if (removedRoomIndex !== -1) {
+              roomsData[removedRoomIndex].status = 'waiting';
+              roomsData[removedRoomIndex].serviceDuration = '00:00:00';
+            }
+          }
+          
+          // 添加到服务队列
+          serviceQueueData.unshift({
+            roomNumber: removedItem.roomNumber,
+            fanSpeed: removedItem.fanSpeed,
+            startTime: new Date().toLocaleString('zh-CN', {
+              year: 'numeric',
+              month: '2-digit',
+              day: '2-digit',
+              hour: '2-digit',
+              minute: '2-digit'
+            }).replace(/\//g, '-'),
+            duration: '00:00:00'
+          });
+          
+          // 更新房间状态
+          const roomIndex = roomsData.findIndex(room => room.roomNumber === roomNumber);
+          if (roomIndex !== -1) {
+            roomsData[roomIndex].status = 'active';
+          }
+          
+          // 更新显示
+          renderRoomsTable();
+          renderServiceQueue();
+          renderWaitingQueue();
+          updateOverview();
+        }
+      }
+      
+      // 从服务队列中移除
+      function removeFromServiceQueue(roomNumber) {
+        // 实际项目中，这里会发送API请求移除服务
+        console.log(`从服务队列中移除房间 ${roomNumber}`);
+        
+        // 从服务队列中移除
+        const index = serviceQueueData.findIndex(item => item.roomNumber === roomNumber);
+        if (index !== -1) {
+          serviceQueueData.splice(index, 1);
+          
+          // 更新房间状态
+          const roomIndex = roomsData.findIndex(room => room.roomNumber === roomNumber);
+          if (roomIndex !== -1) {
+            roomsData[roomIndex].status = 'off';
+            roomsData[roomIndex].mode = null;
+            roomsData[roomIndex].fanSpeed = null;
+            roomsData[roomIndex].serviceDuration = '00:00:00';
+          }
+          
+          // 如果等待队列不为空，将第一个等待的房间添加到服务队列
+          if (waitingQueueData.length > 0) {
+            const nextRoom = waitingQueueData.shift();
+            
+            serviceQueueData.push({
+              roomNumber: nextRoom.roomNumber,
+              fanSpeed: nextRoom.fanSpeed,
+              startTime: new Date().toLocaleString('zh-CN', {
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit'
+              }).replace(/\//g, '-'),
+              duration: '00:00:00'
+            });
+            
+            // 更新房间状态
+            const nextRoomIndex = roomsData.findIndex(room => room.roomNumber === nextRoom.roomNumber);
+            if (nextRoomIndex !== -1) {
+              roomsData[nextRoomIndex].status = 'active';
+            }
+          }
+          
+          // 更新显示
+          renderRoomsTable();
+          renderServiceQueue();
+          renderWaitingQueue();
+          updateOverview();
+        }
+      }
+      
+      // 更新概览数据
+      function updateOverview() {
+        document.getElementById('activeRooms').textContent = serviceQueueData.length;
+        document.getElementById('waitingQueue').textContent = waitingQueueData.length;
+        
+        // 计算总功耗 (实际项目中应该从API获取)
+        let totalPower = 0;
+        serviceQueueData.forEach(item => {
+          if (item.fanSpeed === 'high') totalPower += 2.0;
+          else if (item.fanSpeed === 'medium') totalPower += 1.5;
+          else totalPower += 0.7;
+        });
+        document.getElementById('totalPower').innerHTML = totalPower.toFixed(1) + '<small>kW</small>';
+        
+        // 计算总费用
+        let totalFee = 0;
+        roomsData.forEach(room => {
+          totalFee += room.fee;
+        });
+        document.getElementById('totalFee').textContent = '¥' + totalFee.toFixed(2);
+      }
+      
+      // 初始化筛选按钮
+      document.querySelectorAll('.filter-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+          document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+          this.classList.add('active');
+          renderRoomsTable(this.getAttribute('data-filter'));
+        });
+      });
+      
+      // 初始化队列标签
+      document.querySelectorAll('.queue-tab').forEach(tab => {
+        tab.addEventListener('click', function() {
+          document.querySelectorAll('.queue-tab').forEach(t => t.classList.remove('active'));
+          this.classList.add('active');
+          
+          document.querySelectorAll('.queue-content').forEach(content => content.style.display = 'none');
+          
+          if (this.getAttribute('data-queue') === 'service') {
+            document.getElementById('serviceQueueContent').style.display = 'block';
+          } else {
+            document.getElementById('waitingQueueContent').style.display = 'block';
+          }
+        });
+      });
+      
+      // 设置按钮点击事件
+      document.getElementById('settingsBtn').addEventListener('click', function() {
+        document.getElementById('settingsModal').style.display = 'block';
+      });
+      
+      // 关闭模态框
+      document.querySelector('.close-modal').addEventListener('click', function() {
+        document.getElementById('settingsModal').style.display = 'none';
+      });
+      
+      // 取消设置
+      document.getElementById('cancelSettingsBtn').addEventListener('click', function() {
+        document.getElementById('settingsModal').style.display = 'none';
+      });
+      
+      // 保存设置
+      document.getElementById('saveSettingsBtn').addEventListener('click', function() {
+        // 获取设置值
+        const maxServiceRooms = document.getElementById('setMaxServiceRooms').value;
+        const waitingTimeSlice = document.getElementById('setWaitingTimeSlice').value;
+        const schedulingStrategy = document.getElementById('setSchedulingStrategy').value;
+        const coolingMin = document.getElementById('setCoolingMin').value;
+        const coolingMax = document.getElementById('setCoolingMax').value;
+        const heatingMin = document.getElementById('setHeatingMin').value;
+        const heatingMax = document.getElementById('setHeatingMax').value;
+        const feeRate = document.getElementById('setFeeRate').value;
+        
+        // 实际项目中，这里会发送API请求更新设置
+        console.log('保存系统设置:', {
+          maxServiceRooms,
+          waitingTimeSlice,
+          schedulingStrategy,
+          coolingRange: [coolingMin, coolingMax],
+          heatingRange: [heatingMin, heatingMax],
+          feeRate
+        });
+        
+        // 更新显示
+        document.getElementById('maxServiceRooms').textContent = maxServiceRooms;
+        document.getElementById('waitingTimeSlice').textContent = waitingTimeSlice + '秒';
+        document.getElementById('coolingRange').textContent = coolingMin + '-' + coolingMax + '°C';
+        document.getElementById('heatingRange').textContent = heatingMin + '-' + heatingMax + '°C';
+        document.getElementById('feeRate').textContent = feeRate + '元/度';
+        
+        let strategyText = '';
+        switch(schedulingStrategy) {
+          case 'priority_timeslice':
+            strategyText = '优先级+时间片';
+            break;
+          case 'priority_only':
+            strategyText = '仅优先级';
+            break;
+          case 'timeslice_only':
+            strategyText = '仅时间片';
+            break;
+        }
+        document.getElementById('schedulingStrategy').textContent = strategyText;
+        
+        document.getElementById('settingsModal').style.display = 'none';
+      });
+      
+      // 刷新按钮点击事件
+      document.getElementById('refreshBtn').addEventListener('click', function() {
+        // 实际项目中，这里会重新获取所有数据
+        renderRoomsTable();
+        renderServiceQueue();
+        renderWaitingQueue();
+        updateOverview();
+      });
+      
+      // 实时更新数据 (模拟)
+      setInterval(() => {
+        // 实际项目中，这里应该通过WebSocket或轮询获取最新数据
+        // 更新服务时长
+        serviceQueueData.forEach(item => {
+          // 解析当前时长
+          const [hours, minutes, seconds] = item.duration.split(':').map(Number);
+          // 增加一秒
+          let newSeconds = seconds + 1;
+          let newMinutes = minutes;
+          let newHours = hours;
+          
+          if (newSeconds >= 60) {
+            newSeconds = 0;
+            newMinutes++;
+          }
+          
+          if (newMinutes >= 60) {
+            newMinutes = 0;
+            newHours++;
+          }
+          
+          // 更新时长
+          item.duration = `${newHours.toString().padStart(2, '0')}:${newMinutes.toString().padStart(2, '0')}:${newSeconds.toString().padStart(2, '0')}`;
+          
+          // 更新房间服务时长
+          const roomIndex = roomsData.findIndex(room => room.roomNumber === item.roomNumber);
+          if (roomIndex !== -1) {
+            roomsData[roomIndex].serviceDuration = item.duration;
+            
+            // 增加费用 (根据风速)
+            if (item.fanSpeed === 'high') {
+              roomsData[roomIndex].fee += 1/60; // 高风 1度/分钟，每秒1/60度
+            } else if (item.fanSpeed === 'medium') {
+              roomsData[roomIndex].fee += 1/120; // 中风 1度/2分钟，每秒1/120度
+            } else {
+              roomsData[roomIndex].fee += 1/180; // 低风 1度/3分钟，每秒1/180度
+            }
+          }
+        });
+        
+        // 更新等待时长
+        waitingQueueData.forEach(item => {
+          // 解析当前时长
+          const [hours, minutes, seconds] = item.waitingTime.split(':').map(Number);
+          // 增加一秒
+          let newSeconds = seconds + 1;
+          let newMinutes = minutes;
+          let newHours = hours;
+          
+          if (newSeconds >= 60) {
+            newSeconds = 0;
+            newMinutes++;
+          }
+          
+          if (newMinutes >= 60) {
+            newMinutes = 0;
+            newHours++;
+          }
+          
+          // 更新时长
+          item.waitingTime = `${newHours.toString().padStart(2, '0')}:${newMinutes.toString().padStart(2, '0')}:${newSeconds.toString().padStart(2, '0')}`;
+        });
+        
+        // 更新显示
+        renderRoomsTable(document.querySelector('.filter-btn.active').getAttribute('data-filter'));
+        renderServiceQueue();
+        renderWaitingQueue();
+        updateOverview();
+      }, 1000);
+      
+      // 初始化
+      renderRoomsTable();
+      renderServiceQueue();
+      renderWaitingQueue();
+      updateOverview();
+    });
+  </script>
+  
+  <style>
+    /* 模态框样式 */
+    .modal {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0, 0, 0, 0.5);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+    }
+    
+    .modal-content {
+      background-color: white;
+      border-radius: var(--border-radius);
+      width: 100%;
+      max-width: 600px;
+      box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+    }
+    
+    .modal-header {
+      padding: 15px 20px;
+      border-bottom: 1px solid #eee;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    
+    .modal-body {
+      padding: 20px;
+    }
+    
+    .modal-footer {
+      padding: 15px 20px;
+      border-top: 1px solid #eee;
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+    }
+    
+    .close-modal {
+      cursor: pointer;
+      font-size: 1.5rem;
+    }
+    
+    .range-inputs {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    
+    .range-inputs input {
+      width: calc(50% - 10px);
+    }
+    
+    .queue-empty {
+      padding: 20px;
+      text-align: center;
+      color: var(--grey-color);
+    }
+    
+    .btn-sm {
+      padding: 5px 8px;
+      font-size: 0.8rem;
+    }
+  </style>
+</body>
+</html> 
