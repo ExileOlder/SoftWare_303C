@@ -903,6 +903,9 @@
         <span class="close-modal" data-target="userListModal">&times;</span>
       </div>
       <div class="modal-body">
+        <div id="userListActions" style="margin-bottom: 15px; display: none;">
+          <button class="btn btn-primary" id="mergeGuestAccountsBtn">合并重复客户账号</button>
+        </div>
         <div id="userListContent">
           <!-- 用户列表将在这里动态加载 -->
         </div>
@@ -957,6 +960,14 @@
         // 显示加载状态
         document.getElementById('userListContent').innerHTML = '<div class="loading-spinner">数据加载中...</div>';
         document.getElementById('userListModal').style.display = 'block';
+        
+        // 根据用户类型显示或隐藏操作按钮
+        const userListActions = document.getElementById('userListActions');
+        if (userType === 'guests') {
+          userListActions.style.display = 'block';
+        } else {
+          userListActions.style.display = 'none';
+        }
         
         // 根据类型构建API请求
         let apiUrl = '/api/manager/users/?type=';
@@ -1017,6 +1028,8 @@
                   case 'checkIn': headerTitle = '入住时间'; break;
                   case 'room': headerTitle = '房间号'; break;
                   case 'id_number': headerTitle = '身份证号'; break;
+                  case 'checkOut': headerTitle = '退房时间'; break;
+                  case 'check_in_count': headerTitle = '入住次数'; break;
                   default: headerTitle = header;
                 }
                 tableHTML += `<th>${headerTitle}</th>`;
@@ -1069,6 +1082,37 @@
       document.getElementById('viewManagers').addEventListener('click', function(e) {
         e.preventDefault();
         showUserList('managers', '经理列表');
+      });
+      
+      // 合并客户账号按钮点击事件
+      document.getElementById('mergeGuestAccountsBtn').addEventListener('click', function(e) {
+        e.preventDefault();
+        
+        // 显示确认对话框
+        if (confirm('确定要合并姓名和身份证号相同的客户账号吗？')) {
+          // 发送合并请求
+          fetch('/api/manager/merge_guest_accounts/', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'X-CSRFToken': getCsrfToken()
+            }
+          })
+          .then(response => response.json())
+          .then(data => {
+            if (data.error) {
+              showAlert(data.error, '合并失败');
+            } else {
+              showAlert(data.message, '合并成功');
+              // 刷新客户列表
+              showUserList('guests', '客户列表');
+            }
+          })
+          .catch(error => {
+            console.error('合并客户账号失败:', error);
+            showAlert('合并客户账号请求失败，请重试', '系统错误');
+          });
+        }
       });
       
       // 标签切换
@@ -1572,17 +1616,14 @@
       
       // 获取CSRF Token
       function getCsrfToken() {
-        const tokenValue = document.cookie.split('; ')
-          .find(row => row.startsWith('csrftoken='))
-          ?.split('=')[1];
-          
-        // 如果cookie中没有，尝试从meta标签获取
-        if (!tokenValue) {
-          const metaToken = document.querySelector('meta[name="csrf-token"]');
-          return metaToken ? metaToken.getAttribute('content') : '';
+        const cookies = document.cookie.split(';');
+        for (let cookie of cookies) {
+          const [name, value] = cookie.trim().split('=');
+          if (name === 'csrftoken') {
+            return value;
+          }
         }
-        
-        return tokenValue || '';
+        return '';
       }
       
       // 默认显示报表 - 现在将通过API获取

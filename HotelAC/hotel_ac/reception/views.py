@@ -322,8 +322,10 @@ class CheckOutViewSet(viewsets.ViewSet):
                 # 获取当前房间的所有访客记录，确保相关账单结账后标记为已结账
                 guests = Guest.objects.filter(room=room)
                 for guest in guests:
-                    # 可以选择在这里做一些处理，如记录退房日期等
-                    pass
+                    # 更新访客退房时间
+                    if not guest.check_out_time:
+                        guest.check_out_time = timezone.now()
+                        guest.save()
                 
                 return Response({
                     "message": f"房间 {room.room_number} 退房成功",

@@ -63,7 +63,9 @@ class Guest(models.Model):
     name = models.CharField(max_length=50, verbose_name='访客姓名')
     id_number = models.CharField(max_length=18, verbose_name='身份证号', default='')
     check_in_time = models.DateTimeField(auto_now_add=True, verbose_name='登记时间')
+    check_out_time = models.DateTimeField(null=True, blank=True, verbose_name='退房时间')
     last_login = models.DateTimeField(auto_now=True, verbose_name='最后登录时间')
+    check_in_count = models.IntegerField(default=1, verbose_name='入住次数')
     
     class Meta:
         verbose_name = '访客'
