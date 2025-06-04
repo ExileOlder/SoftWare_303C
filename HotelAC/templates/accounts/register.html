@@ -1,0 +1,340 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>注册 - 中央温控系统</title>
+    <link rel="stylesheet" href="{% static 'css/main.css' %}">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+    <style>
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background: url('{% static "img/control_panel.png" %}') no-repeat center center fixed;
+            background-size: cover;
+            font-family: "Microsoft YaHei", Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+        }
+        .register-container {
+            background-color: rgba(255, 255, 255, 0.95);
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+            text-align: center;
+            width: 420px;
+            position: relative;
+            overflow: hidden;
+            backdrop-filter: blur(5px);
+        }
+        .register-header {
+            margin-bottom: 25px;
+        }
+        .register-header h1 {
+            color: #333;
+            font-size: 24px;
+            margin-bottom: 10px;
+            font-weight: 500;
+        }
+        .register-header .logo {
+            width: 80px;
+            height: 80px;
+            margin: 0 auto 15px;
+            background-color: #1E90FF;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        .register-header .logo i {
+            font-size: 40px;
+            color: white;
+        }
+        .register-container select,
+        .register-container input[type="text"],
+        .register-container input[type="password"],
+        .register-container input[type="email"] {
+            width: 100%;
+            padding: 12px 15px;
+            margin-bottom: 15px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+            font-size: 16px;
+            transition: border-color 0.3s;
+        }
+        .register-container select:focus,
+        .register-container input[type="text"]:focus,
+        .register-container input[type="password"]:focus,
+        .register-container input[type="email"]:focus {
+            border-color: #1E90FF;
+            outline: none;
+            box-shadow: 0 0 0 2px rgba(30, 144, 255, 0.2);
+        }
+        .register-container button {
+            width: 100%;
+            padding: 12px;
+            background-color: #1E90FF;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+            transition: background-color 0.3s;
+            margin-top: 5px;
+        }
+        .register-container button:hover {
+            background-color: #187bcd;
+        }
+        .register-container .form-group {
+            margin-bottom: 15px;
+            text-align: left;
+        }
+        .register-container .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+            color: #555;
+            font-size: 14px;
+        }
+        .hidden {
+            display: none;
+        }
+        .role-selector {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 20px;
+        }
+        .role-option {
+            flex: 1;
+            padding: 15px 10px;
+            text-align: center;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin: 0 5px;
+        }
+        .role-option:hover {
+            border-color: #1E90FF;
+        }
+        .role-option.selected {
+            border-color: #1E90FF;
+            background-color: rgba(30, 144, 255, 0.1);
+        }
+        .role-option i {
+            font-size: 24px;
+            margin-bottom: 8px;
+            color: #1E90FF;
+        }
+        .role-option span {
+            display: block;
+            font-size: 14px;
+        }
+        .login-link {
+            margin-top: 15px;
+            font-size: 14px;
+        }
+        .login-link a {
+            color: #1E90FF;
+            text-decoration: none;
+        }
+        .login-link a:hover {
+            text-decoration: underline;
+        }
+        .error-message {
+            color: #dc3545;
+            font-size: 14px;
+            margin-bottom: 15px;
+            text-align: center;
+            padding: 8px;
+            background-color: rgba(220, 53, 69, 0.1);
+            border-radius: 4px;
+            display: none;
+        }
+        .version {
+            position: absolute;
+            bottom: 10px;
+            right: 10px;
+            font-size: 11px;
+            color: #aaa;
+        }
+    </style>
+</head>
+<body>
+    <div class="register-container">
+        <div class="register-header">
+            <div class="logo">
+                <i class="bi bi-thermometer-half"></i>
+            </div>
+            <h1>中央温控系统注册</h1>
+        </div>
+        
+        <div class="error-message" id="errorMessage">
+            {% if error_message %}
+            {{ error_message }}
+            {% endif %}
+        </div>
+        
+        <form method="POST" action="{% url 'register_process' %}">
+            {% csrf_token %}
+            
+            <input type="hidden" id="role_input" name="role" value="">
+            
+            <div class="role-selector">
+                <div class="role-option" data-role="reception">
+                    <i class="bi bi-reception-4"></i>
+                    <span>前台</span>
+                </div>
+                <div class="role-option" data-role="admin">
+                    <i class="bi bi-gear"></i>
+                    <span>管理员</span>
+                </div>
+                <div class="role-option" data-role="manager">
+                    <i class="bi bi-briefcase"></i>
+                    <span>经理</span>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label for="username">用户名:</label>
+                <input type="text" id="username" name="username" placeholder="请输入用户名" required>
+            </div>
+
+            <div class="form-group">
+                <label for="real_name">姓名:</label>
+                <input type="text" id="real_name" name="real_name" placeholder="请输入真实姓名" required>
+            </div>
+
+            <div class="form-group">
+                <label for="password">密码:</label>
+                <input type="password" id="password" name="password" placeholder="请输入密码" required>
+            </div>
+
+            <div class="form-group">
+                <label for="confirm_password">确认密码:</label>
+                <input type="password" id="confirm_password" name="confirm_password" placeholder="请再次输入密码" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="email">邮箱 (可选):</label>
+                <input type="email" id="email" name="email" placeholder="请输入邮箱(选填)">
+            </div>
+
+            <button type="submit" id="register-btn" disabled>注册</button>
+            
+            <div class="login-link">
+                已有账号? <a href="{% url 'login_page' %}">返回登录</a>
+            </div>
+        </form>
+        
+        <div class="version">v1.0.0</div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const roleOptions = document.querySelectorAll('.role-option');
+            const roleInput = document.getElementById('role_input');
+            const usernameInput = document.getElementById('username');
+            const realNameInput = document.getElementById('real_name');
+            const passwordInput = document.getElementById('password');
+            const confirmPasswordInput = document.getElementById('confirm_password');
+            const emailInput = document.getElementById('email');
+            const registerBtn = document.getElementById('register-btn');
+            const errorMessage = document.getElementById('errorMessage');
+            
+            // 显示错误信息
+            if (errorMessage.textContent.trim() !== '') {
+                errorMessage.style.display = 'block';
+            }
+            
+            roleOptions.forEach(option => {
+                option.addEventListener('click', function() {
+                    // 移除其他选项的选中状态
+                    roleOptions.forEach(opt => opt.classList.remove('selected'));
+                    
+                    // 添加当前选项的选中状态
+                    this.classList.add('selected');
+                    
+                    // 设置隐藏输入字段的值
+                    const role = this.getAttribute('data-role');
+                    roleInput.value = role;
+                    
+                    // 检查表单有效性
+                    checkFormValidity();
+                });
+            });
+            
+            // 监听输入字段变化
+            [usernameInput, realNameInput, passwordInput, confirmPasswordInput].forEach(input => {
+                input.addEventListener('input', checkFormValidity);
+            });
+            
+            // 邮箱是可选的，但也监听其变化
+            emailInput.addEventListener('input', function() {
+                // 如果输入了邮箱，检查格式是否正确
+                if (emailInput.value.trim() !== '' && !isValidEmail(emailInput.value)) {
+                    errorMessage.textContent = "请输入有效的邮箱地址";
+                    errorMessage.style.display = 'block';
+                    registerBtn.disabled = true;
+                } else {
+                    // 如果邮箱为空或格式正确，重新检查表单有效性
+                    checkFormValidity();
+                }
+            });
+            
+            // 检查邮箱格式是否有效
+            function isValidEmail(email) {
+                const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+                return re.test(email);
+            }
+            
+            // 检查表单是否有效
+            function checkFormValidity() {
+                const role = roleInput.value;
+                let isValid = true;
+                
+                // 检查是否已选择角色
+                if (!role) {
+                    isValid = false;
+                }
+                
+                // 检查用户名、姓名、密码和确认密码是否已填写（邮箱为可选）
+                if (!usernameInput.value.trim() || 
+                    !realNameInput.value.trim() ||
+                    !passwordInput.value.trim() || 
+                    !confirmPasswordInput.value.trim()) {
+                    isValid = false;
+                }
+                
+                // 检查密码是否一致
+                if (passwordInput.value !== confirmPasswordInput.value) {
+                    isValid = false;
+                    if (confirmPasswordInput.value.trim() !== '') {
+                        errorMessage.textContent = "两次输入的密码不一致";
+                        errorMessage.style.display = 'block';
+                    } else {
+                        errorMessage.style.display = 'none';
+                    }
+                } else {
+                    // 如果邮箱不为空，检查其格式
+                    if (emailInput.value.trim() !== '' && !isValidEmail(emailInput.value)) {
+                        isValid = false;
+                        errorMessage.textContent = "请输入有效的邮箱地址";
+                        errorMessage.style.display = 'block';
+                    } else {
+                        errorMessage.style.display = 'none';
+                    }
+                }
+                
+                // 启用或禁用注册按钮
+                registerBtn.disabled = !isValid;
+            }
+        });
+    </script>
+</body>
+</html> 

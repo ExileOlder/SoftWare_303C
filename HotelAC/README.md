@@ -1,192 +1,198 @@
-# 波特普大学快捷廉价酒店空调管理系统
+# 波特普大学快捷廉价酒店 - 中央温控系统
 
-## 项目简介
-
-本项目是波特普大学快捷廉价酒店的中央空调管理系统，基于Django框架开发。系统实现了自助计费式中央温控系统，使酒店客户可以根据需求设定温度和风速，并实时显示费用。系统还提供了前台结账功能和管理员监控功能。
+这是波特普大学快捷廉价酒店的中央温控系统，基于Django框架开发，实现了自助计费式中央温控系统的各项功能。系统支持客户端温控、前台入住与结账、管理员监控和经理报表查询。
 
 ## 系统功能
 
-- **客户端功能**：
-  - 空调开关控制
-  - 温度调节（制冷模式：18-25度，制热模式：25-30度）
-  - 风速调节（高风、中风、低风）
-  - 实时显示当前温度和目标温度
-  - 实时计费显示
+### 客户端功能
+- 根据房间号和姓名登录
+- 调节温度、风速和模式（制冷/制热）
+- 开关空调
+- 实时显示房间温度和费用
+- 查看空调使用历史记录
 
-- **前台功能**：
-  - 客房管理（入住、退房）
-  - 空调费用账单生成
-  - 空调使用详单查看
+### 前台功能
+- 办理入住和退房
+- 查看所有房间状态
+- 生成结账账单
+- 查看空调使用详单
 
-- **管理员功能**：
-  - 实时监控所有房间空调状态
-  - 服务队列和等待队列管理
-  - 系统参数设置
-  - 运行状态统计
+### 管理员功能
+- 实时监控所有房间空调状态
+- 查看服务队列和等待队列
+- 调整请求优先级
+- 查看系统日志和状态
+
+### 经理功能
+- 查看各类统计报表
+- 分析空调使用数据
+- 查看营收情况
 
 ## 技术架构
 
-- **前端**：HTML、CSS、JavaScript
-- **后端**：Python + Django + Django Channels
-- **数据库**：Django ORM
-- **实时通信**：WebSocket
+系统采用Django框架，遵循MVT(Model-View-Template)架构模式，核心特点：
 
-## 项目结构
+- **分布式架构**：采用前后端分离设计，后端提供API服务
+- **实时通信**：使用WebSocket实现状态实时更新
+- **调度算法**：实现了优先级调度和时间片调度算法
+- **温度模拟**：实现了房间温度动态变化的模拟算法
 
-```
-HotelAC/                     # 项目根目录
-├── hotel_ac/                # Django项目配置
-│   ├── __init__.py
-│   ├── settings.py          # 项目设置
-│   ├── urls.py              # 主URL配置
-│   ├── asgi.py              # ASGI配置(WebSocket)
-│   └── wsgi.py              # WSGI配置
-│
-├── core/                    # 核心应用(中央空调系统)
-│   ├── __init__.py
-│   ├── models.py            # 数据模型
-│   ├── views.py             # API视图
-│   ├── consumers.py         # WebSocket消费者
-│   ├── services/            # 业务服务
-│   │   ├── __init__.py
-│   │   ├── scheduler.py     # 调度服务
-│   │   └── temperature.py   # 温度计算服务
-│   ├── urls.py              # URL路由
-│   └── routing.py           # WebSocket路由
-│
-├── room/                    # 客房应用
-│   ├── __init__.py
-│   ├── models.py            # 房间和温控数据模型
-│   ├── views.py             # 房间API视图
-│   ├── consumers.py         # 房间WebSocket消费者
-│   ├── urls.py
-│   └── serializers.py       # 序列化器
-│
-├── admin_panel/             # 管理员应用
-│   ├── __init__.py
-│   ├── models.py
-│   ├── views.py             # 管理员监控API
-│   ├── consumers.py         # 管理员实时监控消费者
-│   └── urls.py
-│
-├── reception/               # 前台应用
-│   ├── __init__.py
-│   ├── models.py            # 账单模型
-│   ├── views.py             # 账单API
-│   └── urls.py
-│
-├── static/                  # 静态资源
-│   ├── css/                 # 样式文件
-│   ├── js/                  # JavaScript文件
-│   └── img/                 # 图片资源
-│
-├── templates/               # HTML模板
-│   ├── room/                # 客户端模板
-│   ├── admin/               # 管理员模板
-│   └── reception/           # 前台模板
-│
-├── requirements.txt         # 项目依赖
-└── README.md                # 项目说明
-```
+### 系统模块
 
-## 安装和运行
+- **Core**: 核心功能模块，实现调度服务、队列管理和计费功能
+- **Room**: 客房空调控制模块，提供温控界面和API
+- **Reception**: 前台结账模块，管理入住和退房
+- **Admin_app**: 管理员监控模块，实现系统监控
+- **Manager**: 经理报表模块，提供数据分析功能
+- **Accounts**: 账户管理模块，处理登录和注册
 
-### 依赖环境
+## 快速开始
+
+### 环境要求
 
 - Python 3.8+
-- Django 4.2.0
-- Django REST Framework 3.14.0
-- Django Channels 4.0.0
-- Redis (用于Channels)
+- Django 4.0+
+- Redis (用于WebSocket通信)
 
 ### 安装步骤
 
-1. 克隆项目
+1. **克隆项目并安装依赖**
 
 ```bash
 git clone <repository-url>
 cd HotelAC
-```
-
-2. 创建虚拟环境并激活
-
-```bash
-python -m venv venv
-# Windows
-venv\Scripts\activate
-# Linux/Mac
-source venv/bin/activate
-```
-
-3. 安装依赖
-
-```bash
 pip install -r requirements.txt
 ```
 
-4. 初始化数据库
+2. **初始化数据库**
+
+如果您是第一次运行项目，可以使用SQLite数据库进行快速开始：
 
 ```bash
-python manage.py makemigrations
-python manage.py migrate
+python manage.py migrate  # 应用数据库迁移
+python reset_db.py        # 重置数据库并创建初始数据
 ```
 
-5. 创建超级用户
+3. **启动开发服务器**
 
 ```bash
-python manage.py createsuperuser
+python manage.py runserver 0.0.0.0:8000
 ```
 
-6. 运行开发服务器
+4. **访问系统**
+
+在浏览器中访问 http://localhost:8000/
+
+### 默认账号
+
+初始化后系统会创建以下默认账号：
+
+- **超级管理员**：
+  - 用户名：admin
+  - 密码：admin123456
+
+其他用户需要通过系统注册功能创建。
+
+## 核心业务逻辑
+
+### 温控系统规则
+
+- **温度范围**：制冷模式（18-25度），制热模式（25-30度）
+- **计费标准**：1元/度
+- **耗电标准**：
+  - 高风：1度/1分钟
+  - 中风：1度/2分钟
+  - 低风：1度/3分钟
+- **温度变化模式**：
+  - 中风模式下每分钟变化0.5度
+  - 高风模式每分钟变化率提高20%
+  - 低风模式每分钟变化率减小20%
+
+### 调度算法
+
+系统实现了优先级调度+时间片调度算法：
+
+1. **优先级调度**：新送风请求的风速若高于正在接受服务的某个送风请求，则将立即服务高风速请求
+2. **时间片调度**：风速相同的请求采用时间片轮转，保证服务公平性
+
+## 目录结构
+
+```
+HotelAC/
+├── hotel_ac/              # Django项目目录
+│   ├── core/              # 核心应用（调度服务、队列管理）
+│   ├── room/              # 房间空调控制应用
+│   ├── reception/         # 前台应用
+│   ├── admin_app/         # 管理员应用
+│   ├── manager/           # 经理应用
+│   ├── accounts/          # 账户管理应用
+│   └── settings.py        # 项目配置
+├── static/                # 静态文件
+├── templates/             # HTML模板
+├── manage.py              # Django管理脚本
+├── requirements.txt       # 项目依赖
+├── reset_db.py            # 数据库重置脚本
+└── README.md              # 项目说明
+```
+
+## 开发与部署
+
+### 开发模式
 
 ```bash
-python manage.py runserver
+python manage.py runserver 0.0.0.0:8000
 ```
 
-访问 http://localhost:8000/ 查看应用。
+### 生产环境部署
 
-## 系统配置
+1. 修改 `settings.py`，设置 `DEBUG = False`
+2. 配置合适的数据库（推荐MySQL）
+3. 使用Nginx + Gunicorn部署
 
-系统主要参数在`settings.py`中配置：
+```bash
+# 安装Gunicorn
+pip install gunicorn
 
-- `MAX_SERVICE_ROOMS`: 最大同时服务房间数
-- `WAITING_TIME_SLICE`: 等待时间片（秒）
-- `TEMPERATURE_CHANGE_RATES`: 温度变化率配置
-- `FEE_RATES`: 费用计算率
+# 启动Gunicorn
+gunicorn hotel_ac.wsgi:application --bind 0.0.0.0:8000
+```
 
-## API接口
+## 常见问题
 
-系统提供了一系列RESTful API接口，详细接口文档可通过访问 http://localhost:8000/api/docs/ 查看。
+### 如果系统时间显示错误
 
-主要接口包括：
+时间相关问题通常与Django的时区设置有关。在 `settings.py` 中：
 
-- 温控请求接口
-- 状态查询接口
-- 账单生成接口
-- 监控数据接口
+```python
+TIME_ZONE = 'Asia/Shanghai'  # 设置为中国时区
+USE_TZ = True                # 启用时区支持
+```
 
-## 前后端分离
+### 如果无法连接WebSocket
 
-本项目采用前后端分离的架构：
+确保Redis服务已启动，并在 `settings.py` 中正确配置：
 
-- 前端通过HTML/CSS/JavaScript实现用户界面
-- 后端通过Django REST Framework提供API
-- 使用Django Channels实现WebSocket通信，保证实时数据传输
+```python
+CHANNEL_LAYERS = {
+    'default': {
+        'BACKEND': 'channels_redis.core.RedisChannelLayer',
+        'CONFIG': {
+            "hosts": [('localhost', 6379)],
+        },
+    },
+}
+```
 
-## 系统特点
+## 项目贡献
 
-1. **实时温控**：客户端可实时控制和监测房间温度
-2. **智能调度**：使用优先级调度和时间片调度算法
-3. **精确计费**：根据风速和使用时间精确计算费用
-4. **全面监控**：管理员可监控所有房间状态和系统运行情况
+欢迎提交问题报告和功能建议。如需贡献代码，请遵循以下步骤：
 
-## 未来工作
-
-- 移动端应用开发
-- 数据分析和报表功能增强
-- 多语言支持
-- 更高级的调度算法
+1. Fork项目
+2. 创建您的特性分支 (`git checkout -b feature/amazing-feature`)
+3. 提交您的更改 (`git commit -m 'Add some amazing feature'`)
+4. 推送到分支 (`git push origin feature/amazing-feature`)
+5. 打开Pull Request
 
 ## 许可证
 
-本项目采用MIT许可证 
+本项目采用MIT许可证 - 详情请参阅 LICENSE 文件 

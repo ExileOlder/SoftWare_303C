@@ -1,3 +1,4 @@
+{% load static %}
 <!DOCTYPE html>
 <html lang="zh">
 <head>
@@ -5,11 +6,11 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>前台管理系统 - 波特普大学快捷廉价酒店</title>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
-  <link rel="stylesheet" href="../../static/css/main.css">
-  <link rel="stylesheet" href="../../static/css/reception.css">
+  <link rel="stylesheet" href="{% static 'css/main.css' %}">
+  <link rel="stylesheet" href="{% static 'css/reception.css' %}">
   <style>
     body {
-      background-image: url('../../static/img/dashboard.png');
+      background-image: url("{% static 'img/dashboard.png' %}");
       background-size: cover;
       background-position: center;
       background-repeat: no-repeat;
@@ -21,9 +22,90 @@
       border-radius: 15px;
       box-shadow: 0 8px 30px rgba(0, 0, 0, 0.2);
     }
+    
+    .back-button {
+      position: fixed;
+      top: 20px;
+      left: 20px;
+      background-color: rgba(0, 0, 0, 0.6);
+      color: white;
+      border: none;
+      border-radius: 50%;
+      width: 50px;
+      height: 50px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      cursor: pointer;
+      z-index: 100;
+      transition: all 0.3s ease;
+    }
+    
+    .back-button:hover {
+      background-color: rgba(0, 0, 0, 0.8);
+      transform: scale(1.1);
+    }
+    
+    .back-button i {
+      font-size: 24px;
+    }
+    
+    /* 确保模态框正确居中 */
+    .modal {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0, 0, 0, 0.5);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+    }
+    
+    .modal-content {
+      background-color: white;
+      border-radius: 8px;
+      width: 100%;
+      max-width: 500px;
+      box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+      margin: 0 auto;
+      position: relative;
+      transform: none !important;
+    }
+    
+    .modal-header {
+      padding: 15px 20px;
+      border-bottom: 1px solid #eee;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    
+    .modal-body {
+      padding: 20px;
+    }
+    
+    .modal-footer {
+      padding: 15px 20px;
+      border-top: 1px solid #eee;
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+    }
+    
+    .close-modal {
+      cursor: pointer;
+      font-size: 1.5rem;
+    }
   </style>
 </head>
 <body>
+  <a href="{% url 'login_page' %}" class="back-button" title="返回登录页面">
+    <i class="bi bi-arrow-left"></i>
+  </a>
+  
   <div class="reception-container">
     <div class="reception-header">
       <h1 class="reception-title">波特普大学快捷廉价酒店 - 前台管理系统</h1>
@@ -35,13 +117,12 @@
     
     <div class="reception-tabs">
       <div class="reception-tab active" data-tab="rooms">客房管理</div>
-      <div class="reception-tab" data-tab="checkout">结账管理</div>
     </div>
     
     <div class="tab-content" id="roomsTab">
       <div class="reception-search-bar">
-        <input type="text" class="reception-search-input" placeholder="输入房间号或客人姓名搜索...">
-        <button class="reception-search-btn"><i class="bi bi-search"></i></button>
+        <input type="text" id="roomSearchInput" class="reception-search-input" placeholder="输入房间号或客人姓名搜索...">
+        <button class="reception-search-btn" id="roomSearchBtn"><i class="bi bi-search"></i></button>
       </div>
       
       <div class="rooms-grid" id="roomsGrid">
@@ -49,63 +130,58 @@
       </div>
     </div>
     
-    <div class="tab-content" id="checkoutTab" style="display: none;">
-      <div class="reception-search-bar">
-        <input type="text" class="reception-search-input" placeholder="输入房间号查询账单...">
-        <button class="reception-search-btn"><i class="bi bi-search"></i></button>
+    <!-- 保留checkout表单，但隐藏，退房时直接调用 -->
+    <div class="checkout-form" id="checkoutForm" style="display: none;">
+      <h2 class="form-title">结账账单</h2>
+      
+      <div class="form-group">
+        <label>房间信息</label>
+        <div class="card">
+          <div class="form-group">
+            <label>房间号</label>
+            <div class="form-control" id="billRoomNumber">101</div>
+          </div>
+          <div class="form-group">
+            <label>入住日期</label>
+            <div class="form-control" id="billCheckInDate">2023-05-19 14:00</div>
+          </div>
+          <div class="form-group">
+            <label>结账日期</label>
+            <div class="form-control" id="billCheckOutDate">2023-05-21 12:00</div>
+          </div>
+        </div>
       </div>
       
-      <div class="checkout-form" id="checkoutForm" style="display: none;">
-        <h2 class="form-title">结账账单</h2>
+      <div class="checkout-details">
+        <div class="checkout-section">
+          <h3 class="checkout-section-title">空调使用详情</h3>
+          <table class="checkout-table" id="acUsageTable">
+            <thead>
+              <tr>
+                <th>开始时间</th>
+                <th>结束时间</th>
+                <th>模式</th>
+                <th>风速</th>
+                <th>费用</th>
+              </tr>
+            </thead>
+            <tbody>
+              <!-- 空调使用记录将通过JavaScript动态生成 -->
+            </tbody>
+          </table>
+        </div>
         
-        <div class="form-group">
-          <label>房间信息</label>
-          <div class="card">
-            <div class="form-group">
-              <label>房间号</label>
-              <div class="form-control" id="billRoomNumber">101</div>
-            </div>
-            <div class="form-group">
-              <label>入住日期</label>
-              <div class="form-control" id="billCheckInDate">2023-05-19 14:00</div>
-            </div>
-            <div class="form-group">
-              <label>结账日期</label>
-              <div class="form-control" id="billCheckOutDate">2023-05-21 12:00</div>
-            </div>
+        <div class="checkout-summary">
+          <div class="checkout-total">
+            <span>空调使用总费用:</span>
+            <span id="totalAcCost">¥0.00</span>
           </div>
         </div>
         
-        <div class="checkout-details">
-          <div class="checkout-section">
-            <h3 class="checkout-section-title">空调使用详情</h3>
-            <table class="checkout-table" id="acUsageTable">
-              <thead>
-                <tr>
-                  <th>开始时间</th>
-                  <th>结束时间</th>
-                  <th>模式</th>
-                  <th>风速</th>
-                  <th>费用</th>
-                </tr>
-              </thead>
-              <tbody>
-                <!-- 空调使用记录将通过JavaScript动态生成 -->
-              </tbody>
-            </table>
-          </div>
-          
-          <div class="checkout-summary">
-            <div class="checkout-total">
-              <span>空调使用总费用:</span>
-              <span id="totalAcCost">¥0.00</span>
-            </div>
-          </div>
-          
-          <div class="checkout-actions">
-            <button class="btn" id="printBillBtn"><i class="bi bi-printer"></i> 打印账单</button>
-            <button class="btn btn-success" id="completeCheckoutBtn">完成结账</button>
-          </div>
+        <div class="checkout-actions">
+          <button class="btn btn-secondary" id="closeCheckoutBtn">关闭</button>
+          <button class="btn" id="printBillBtn"><i class="bi bi-printer"></i> 打印账单</button>
+          <button class="btn btn-success" id="completeCheckoutBtn">完成结账</button>
         </div>
       </div>
     </div>
@@ -150,184 +226,103 @@
         </div>
       </div>
     </div>
+    
+    <!-- 通用提示模态框 -->
+    <div class="modal" id="alertModal" style="display: none;">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h2 id="alertTitle">提示</h2>
+          <span class="close-modal" data-target="alertModal">&times;</span>
+        </div>
+        <div class="modal-body">
+          <p id="alertMessage"></p>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-success" id="alertConfirmBtn">确定</button>
+        </div>
+      </div>
+    </div>
   </div>
 
   <script>
     document.addEventListener('DOMContentLoaded', function() {
-      // 初始化房间数据 (实际项目中应该从API获取)
-      const roomsData = [
-        { 
-          roomNumber: '101', 
-          status: 'occupied', 
-          guestName: '张三', 
-          checkIn: '2023-05-19 14:00',
-          temperature: 23.5,
-          acStatus: 'on',
-          acMode: 'cooling',
-          fanSpeed: 'medium',
-          acCost: 8.50
-        },
-        { 
-          roomNumber: '102', 
-          status: 'available', 
-          guestName: null, 
-          checkIn: null,
-          temperature: 25.0,
-          acStatus: 'off',
-          acMode: null,
-          fanSpeed: null,
-          acCost: 0
-        },
-        { 
-          roomNumber: '103', 
-          status: 'occupied', 
-          guestName: '李四', 
-          checkIn: '2023-05-20 10:30',
-          temperature: 24.0,
-          acStatus: 'on',
-          acMode: 'heating',
-          fanSpeed: 'high',
-          acCost: 12.75
-        },
-        { 
-          roomNumber: '104', 
-          status: 'available', 
-          guestName: null, 
-          checkIn: null,
-          temperature: 25.0,
-          acStatus: 'off',
-          acMode: null,
-          fanSpeed: null,
-          acCost: 0
-        },
-        { 
-          roomNumber: '105', 
-          status: 'occupied', 
-          guestName: '王五', 
-          checkIn: '2023-05-18 16:15',
-          temperature: 22.0,
-          acStatus: 'on',
-          acMode: 'cooling',
-          fanSpeed: 'low',
-          acCost: 15.20
-        }
-      ];
+      // 使用真实API数据替代硬编码数据
+      let roomsData = [];
       
-      // 空调使用记录示例数据 (实际项目中应该从API获取)
-      const acUsageData = [
-        {
-          roomNumber: '101',
-          records: [
-            { 
-              startTime: '2023-05-19 14:30', 
-              endTime: '2023-05-19 16:45', 
-              mode: '制冷', 
-              fanSpeed: '中风', 
-              cost: 3.50 
-            },
-            { 
-              startTime: '2023-05-19 20:00', 
-              endTime: '2023-05-20 07:30', 
-              mode: '制冷', 
-              fanSpeed: '低风', 
-              cost: 5.00 
-            }
-          ]
-        },
-        {
-          roomNumber: '103',
-          records: [
-            { 
-              startTime: '2023-05-20 11:00', 
-              endTime: '2023-05-20 14:30', 
-              mode: '制热', 
-              fanSpeed: '高风', 
-              cost: 7.25 
-            },
-            { 
-              startTime: '2023-05-20 19:45', 
-              endTime: '2023-05-21 06:15', 
-              mode: '制热', 
-              fanSpeed: '中风', 
-              cost: 5.50 
-            }
-          ]
-        },
-        {
-          roomNumber: '105',
-          records: [
-            { 
-              startTime: '2023-05-18 16:30', 
-              endTime: '2023-05-18 22:45', 
-              mode: '制冷', 
-              fanSpeed: '低风', 
-              cost: 4.20 
-            },
-            { 
-              startTime: '2023-05-19 08:15', 
-              endTime: '2023-05-19 12:30', 
-              mode: '制冷', 
-              fanSpeed: '中风', 
-              cost: 6.00 
-            },
-            { 
-              startTime: '2023-05-19 20:00', 
-              endTime: '2023-05-20 08:30', 
-              mode: '制冷', 
-              fanSpeed: '低风', 
-              cost: 5.00 
-            }
-          ]
+      // 获取所有房间数据的函数
+      async function fetchRooms() {
+        try {
+          // 获取可入住房间
+          const availableResponse = await fetch('/api/reception/checkin/');
+          const availableData = await availableResponse.json();
+          
+          // 获取已入住房间
+          const occupiedResponse = await fetch('/api/reception/checkin/occupied_rooms/');
+          const occupiedData = await occupiedResponse.json();
+          
+          // 合并房间数据
+          roomsData = [
+            ...availableData.map(room => ({
+              ...room,
+              status: 'available',
+              guestName: null,
+              checkIn: null
+            })),
+            ...occupiedData.map(room => ({
+              ...room,
+              status: 'occupied'
+            }))
+          ];
+          
+          // 渲染房间
+          renderRooms();
+        } catch (error) {
+          console.error('获取房间数据失败:', error);
+          showAlert('获取房间数据失败，请刷新页面重试', '系统错误');
         }
-      ];
+      }
       
       // 渲染房间卡片
-      function renderRooms() {
+      function renderRooms(filteredRooms = null) {
         const roomsGrid = document.getElementById('roomsGrid');
         roomsGrid.innerHTML = '';
         
-        roomsData.forEach(room => {
+        // 使用过滤后的房间数据或全部数据
+        const roomsToRender = filteredRooms || roomsData;
+        
+        roomsToRender.forEach(room => {
           const roomCard = document.createElement('div');
           roomCard.className = 'room-card';
           
           roomCard.innerHTML = `
             <div class="room-card-header">
-              <div class="room-number">${room.roomNumber}</div>
-              <div class="room-status">${room.status === 'occupied' ? '已入住' : '空闲'}</div>
+              <div class="room-number">${room.room_number}</div>
+              <div class="room-status">${room.is_occupied ? '已入住' : '空闲'}</div>
             </div>
             <div class="room-card-body">
-              ${room.status === 'occupied' ? `
+              ${room.is_occupied ? `
                 <div class="room-info-item">
-                  <div class="room-info-label">客人姓名</div>
-                  <div class="room-info-value">${room.guestName}</div>
+                  <div class="room-info-label">入住状态</div>
+                  <div class="room-info-value">已入住</div>
                 </div>
+                ${room.guest_name ? `
                 <div class="room-info-item">
-                  <div class="room-info-label">入住时间</div>
-                  <div class="room-info-value">${room.checkIn}</div>
+                  <div class="room-info-label">入住人</div>
+                  <div class="room-info-value">${room.guest_name}</div>
                 </div>
+                ` : ''}
                 <div class="room-info-item">
                   <div class="room-info-label">当前温度</div>
-                  <div class="room-info-value">${room.temperature}°C</div>
+                  <div class="room-info-value">${room.current_temperature}°C</div>
                 </div>
                 <div class="room-info-item">
                   <div class="room-info-label">空调状态</div>
-                  <div class="room-info-value">${room.acStatus === 'on' ? '开启' : '关闭'}</div>
+                  <div class="room-info-value">${room.is_ac_on ? '开启' : '关闭'}</div>
                 </div>
-                ${room.acStatus === 'on' ? `
+                ${room.is_ac_on ? `
                   <div class="room-info-item">
-                    <div class="room-info-label">运行模式</div>
-                    <div class="room-info-value">${room.acMode === 'cooling' ? '制冷' : '制热'}</div>
-                  </div>
-                  <div class="room-info-item">
-                    <div class="room-info-label">风速</div>
-                    <div class="room-info-value">
-                      ${room.fanSpeed === 'low' ? '低风' : 
-                        room.fanSpeed === 'medium' ? '中风' : '高风'}
-                    </div>
-                  </div>
-                  <div class="room-info-item">
-                    <div class="room-info-label">空调费用</div>
-                    <div class="room-info-value">¥${room.acCost.toFixed(2)}</div>
+                    <div class="room-info-label">目标温度</div>
+                    <div class="room-info-value">${room.target_temperature}°C</div>
                   </div>
                 ` : ''}
               ` : `
@@ -337,15 +332,15 @@
                 </div>
                 <div class="room-info-item">
                   <div class="room-info-label">当前温度</div>
-                  <div class="room-info-value">${room.temperature}°C</div>
+                  <div class="room-info-value">${room.current_temperature}°C</div>
                 </div>
               `}
             </div>
             <div class="room-card-footer">
-              ${room.status === 'occupied' ? `
-                <button class="btn btn-warning room-checkout-btn" data-room="${room.roomNumber}">退房</button>
+              ${room.is_occupied ? `
+                <button class="btn btn-warning room-checkout-btn" data-room="${room.id}">退房</button>
               ` : `
-                <button class="btn room-checkin-btn" data-room="${room.roomNumber}">入住</button>
+                <button class="btn room-checkin-btn" data-room="${room.id}">入住</button>
               `}
             </div>
           `;
@@ -369,7 +364,7 @@
       }
       
       // 显示入住模态框
-      function showCheckInModal(roomNumber) {
+      function showCheckInModal(roomId) {
         const modal = document.getElementById('checkInModal');
         const roomSelect = document.getElementById('roomNumber');
         
@@ -377,11 +372,11 @@
         roomSelect.innerHTML = '<option value="">请选择房间</option>';
         
         // 添加可用房间
-        roomsData.filter(room => room.status === 'available').forEach(room => {
+        roomsData.filter(room => !room.is_occupied).forEach(room => {
           const option = document.createElement('option');
-          option.value = room.roomNumber;
-          option.textContent = `${room.roomNumber} (空闲)`;
-          if (room.roomNumber === roomNumber) {
+          option.value = room.id;
+          option.textContent = `${room.room_number} (空闲)`;
+          if (room.id.toString() === roomId) {
             option.selected = true;
           }
           roomSelect.appendChild(option);
@@ -390,55 +385,95 @@
         modal.style.display = 'block';
       }
       
-      // 显示结账表单
-      function showCheckoutForm(roomNumber) {
-        // 切换到结账标签
-        document.querySelector('.reception-tab[data-tab="checkout"]').click();
-        
+      // 显示结账表单 - 修改为打开模态框形式
+      function showCheckoutForm(roomId) {
         const form = document.getElementById('checkoutForm');
-        const roomData = roomsData.find(room => room.roomNumber === roomNumber);
+        const roomData = roomsData.find(room => room.id.toString() === roomId);
         
         if (roomData) {
-          document.getElementById('billRoomNumber').textContent = roomData.roomNumber;
-          document.getElementById('billCheckInDate').textContent = roomData.checkIn;
-          document.getElementById('billCheckOutDate').textContent = new Date().toLocaleString('zh-CN', {
-            year: 'numeric',
-            month: '2-digit',
-            day: '2-digit',
-            hour: '2-digit',
-            minute: '2-digit'
-          }).replace(/\//g, '-');
+          document.getElementById('billRoomNumber').textContent = roomData.room_number;
           
-          // 获取该房间的空调使用记录
-          const usageData = acUsageData.find(usage => usage.roomNumber === roomNumber);
-          const tableBody = document.getElementById('acUsageTable').querySelector('tbody');
-          tableBody.innerHTML = '';
-          
-          let totalCost = 0;
-          
-          if (usageData && usageData.records.length > 0) {
-            usageData.records.forEach(record => {
-              const row = document.createElement('tr');
-              row.innerHTML = `
-                <td>${record.startTime}</td>
-                <td>${record.endTime}</td>
-                <td>${record.mode}</td>
-                <td>${record.fanSpeed}</td>
-                <td>¥${record.cost.toFixed(2)}</td>
-              `;
-              tableBody.appendChild(row);
+          // 获取该房间的账单预览
+          fetch(`/api/reception/checkout/${roomId}/bill_preview/`)
+            .then(response => response.json())
+            .then(data => {
+              if (data.error) {
+                showAlert(data.error, '获取账单失败');
+                return;
+              }
               
-              totalCost += record.cost;
+              document.getElementById('billCheckInDate').textContent = new Date(data.check_in_time).toLocaleString('zh-CN');
+              document.getElementById('billCheckOutDate').textContent = new Date(data.estimated_check_out_time).toLocaleString('zh-CN');
+              
+              // 渲染空调使用记录
+              const tableBody = document.getElementById('acUsageTable').querySelector('tbody');
+              tableBody.innerHTML = '';
+              
+              // 检查是否有空调使用记录详情
+              const usageDetails = data.usage_details || [];
+              
+              if (usageDetails.length > 0) {
+                // 显示每条使用记录的详情
+                usageDetails.forEach(record => {
+                  const row = document.createElement('tr');
+                  row.innerHTML = `
+                    <td>${new Date(record.start_time).toLocaleString('zh-CN')}</td>
+                    <td>${record.end_time ? new Date(record.end_time).toLocaleString('zh-CN') : '使用中'}</td>
+                    <td>${record.mode === 'COOL' ? '制冷' : '制热'}</td>
+                    <td>${record.fan_speed === 'LOW' ? '低风' : record.fan_speed === 'MEDIUM' ? '中风' : '高风'}</td>
+                    <td>¥${record.cost.toFixed(2)}</td>
+                  `;
+                  tableBody.appendChild(row);
+                });
+              } else {
+                // 如果没有详细记录，显示总结信息
+                const row = document.createElement('tr');
+                if (data.total_cost > 0) {
+                  row.innerHTML = `
+                    <td>${new Date(data.check_in_time).toLocaleString('zh-CN')}</td>
+                    <td>${new Date(data.check_out_time || data.estimated_check_out_time).toLocaleString('zh-CN')}</td>
+                    <td colspan="2">空调使用费用</td>
+                    <td>¥${data.total_cost.toFixed(2)}</td>
+                  `;
+                } else {
+                  row.innerHTML = '<td colspan="5" class="text-center">无空调使用记录</td>';
+                }
+                tableBody.appendChild(row);
+              }
+              
+              document.getElementById('totalAcCost').textContent = `¥${data.ac_usage_cost !== undefined ? data.ac_usage_cost.toFixed(2) : data.total_cost.toFixed(2)}`;
+              
+              // 改为模态框形式显示
+              form.style.display = 'block';
+              form.style.position = 'fixed';
+              form.style.top = '50%';
+              form.style.left = '50%';
+              form.style.transform = 'translate(-50%, -50%)';
+              form.style.zIndex = '1000';
+              form.style.backgroundColor = 'white';
+              form.style.padding = '20px';
+              form.style.borderRadius = '8px';
+              form.style.boxShadow = '0 0 10px rgba(0, 0, 0, 0.2)';
+              form.style.maxWidth = '80%';
+              form.style.maxHeight = '90vh';
+              form.style.overflow = 'auto';
+              
+              // 添加遮罩层
+              const overlay = document.createElement('div');
+              overlay.id = 'checkoutOverlay';
+              overlay.style.position = 'fixed';
+              overlay.style.top = '0';
+              overlay.style.left = '0';
+              overlay.style.width = '100%';
+              overlay.style.height = '100%';
+              overlay.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
+              overlay.style.zIndex = '999';
+              document.body.appendChild(overlay);
+            })
+            .catch(error => {
+              console.error('获取账单预览失败:', error);
+              showAlert('获取账单预览失败，请重试', '系统错误');
             });
-          } else {
-            const row = document.createElement('tr');
-            row.innerHTML = '<td colspan="5" class="text-center">无空调使用记录</td>';
-            tableBody.appendChild(row);
-          }
-          
-          document.getElementById('totalAcCost').textContent = `¥${totalCost.toFixed(2)}`;
-          
-          form.style.display = 'block';
         }
       }
       
@@ -454,11 +489,6 @@
           this.classList.add('active');
           // 显示对应内容
           document.getElementById(`${this.getAttribute('data-tab')}Tab`).style.display = 'block';
-          
-          // 如果切换到房间管理，隐藏结账表单
-          if (this.getAttribute('data-tab') === 'rooms') {
-            document.getElementById('checkoutForm').style.display = 'none';
-          }
         });
       });
       
@@ -468,13 +498,26 @@
       });
       
       // 刷新按钮事件
-      document.getElementById('refreshBtn').addEventListener('click', () => {
-        renderRooms();
+      document.getElementById('refreshBtn').addEventListener('click', fetchRooms);
+      
+      // 自定义提示框函数
+      function showAlert(message, title = '提示') {
+        document.getElementById('alertTitle').textContent = title;
+        document.getElementById('alertMessage').textContent = message;
+        document.getElementById('alertModal').style.display = 'block';
+      }
+      
+      // 关闭模态框的通用处理
+      document.querySelectorAll('.close-modal').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const target = btn.getAttribute('data-target') || 'checkInModal';
+          document.getElementById(target).style.display = 'none';
+        });
       });
       
-      // 关闭模态框
-      document.querySelector('.close-modal').addEventListener('click', () => {
-        document.getElementById('checkInModal').style.display = 'none';
+      // 提示框确认按钮
+      document.getElementById('alertConfirmBtn').addEventListener('click', () => {
+        document.getElementById('alertModal').style.display = 'none';
       });
       
       // 取消入住按钮
@@ -484,120 +527,171 @@
       
       // 确认入住按钮
       document.getElementById('confirmCheckInBtn').addEventListener('click', () => {
-        const roomNumber = document.getElementById('roomNumber').value;
+        const roomId = document.getElementById('roomNumber').value;
         const guestName = document.getElementById('guestName').value;
         
-        if (!roomNumber || !guestName) {
-          alert('请选择房间并输入客人姓名');
+        if (!roomId || !guestName) {
+          showAlert('请选择房间并输入客人姓名');
           return;
         }
         
-        // 实际项目中，这里会发送API请求完成入住流程
-        alert(`房间 ${roomNumber} 已成功办理入住`);
-        
-        // 更新房间状态
-        const roomIndex = roomsData.findIndex(room => room.roomNumber === roomNumber);
-        if (roomIndex !== -1) {
-          roomsData[roomIndex].status = 'occupied';
-          roomsData[roomIndex].guestName = guestName;
-          roomsData[roomIndex].checkIn = new Date().toLocaleString('zh-CN', {
-            year: 'numeric',
-            month: '2-digit',
-            day: '2-digit',
-            hour: '2-digit',
-            minute: '2-digit'
-          }).replace(/\//g, '-');
-        }
-        
-        // 关闭模态框并刷新房间列表
-        document.getElementById('checkInModal').style.display = 'none';
-        renderRooms();
+        // 向API发送入住请求
+        fetch(`/api/reception/checkin/${roomId}/check_in/`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCsrfToken() // 获取CSRF token的函数在下方定义
+          },
+          body: JSON.stringify({
+            guest_name: guestName,
+            id_number: document.getElementById('idNumber').value,
+            phone_number: document.getElementById('phoneNumber').value,
+            remarks: document.getElementById('remarks').value
+          })
+        })
+        .then(response => response.json())
+        .then(data => {
+          if (data.error) {
+            showAlert(data.error, '入住失败');
+          } else {
+            showAlert(`房间 ${data.room_number} 已成功办理入住`, '入住成功');
+            // 关闭模态框并刷新房间列表
+            document.getElementById('checkInModal').style.display = 'none';
+            // 清空表单
+            document.getElementById('guestName').value = '';
+            document.getElementById('idNumber').value = '';
+            document.getElementById('phoneNumber').value = '';
+            document.getElementById('remarks').value = '';
+            // 刷新房间列表
+            fetchRooms();
+          }
+        })
+        .catch(error => {
+          console.error('入住请求失败:', error);
+          showAlert('入住请求发送失败，请重试', '系统错误');
+        });
       });
+      
+      // 获取CSRF Token
+      function getCsrfToken() {
+        return document.cookie.split('; ')
+          .find(row => row.startsWith('csrftoken='))
+          ?.split('=')[1] || '';
+      }
       
       // 打印账单按钮
       document.getElementById('printBillBtn').addEventListener('click', () => {
-        // 实际项目中，这里会处理打印逻辑
-        alert('打印账单');
+        // 获取当前房间ID
+        const roomNumber = document.getElementById('billRoomNumber').textContent;
+        const room = roomsData.find(r => r.room_number === roomNumber);
+        
+        if (!room) {
+          showAlert('找不到房间信息', '错误');
+          return;
+        }
+        
+        // 构建下载URL并触发下载
+        const downloadUrl = `/api/reception/bills/${room.id}/print/`;
+        
+        // 创建一个隐藏的a标签用于下载
+        const downloadLink = document.createElement('a');
+        downloadLink.href = downloadUrl;
+        downloadLink.target = '_blank';
+        document.body.appendChild(downloadLink);
+        downloadLink.click();
+        document.body.removeChild(downloadLink);
+        
+        showAlert('账单已生成，正在下载...');
+      });
+      
+      // 添加关闭结账表单按钮的事件处理
+      document.getElementById('closeCheckoutBtn').addEventListener('click', () => {
+        document.getElementById('checkoutForm').style.display = 'none';
+        const overlay = document.getElementById('checkoutOverlay');
+        if (overlay) {
+          document.body.removeChild(overlay);
+        }
       });
       
       // 完成结账按钮
       document.getElementById('completeCheckoutBtn').addEventListener('click', () => {
-        const roomNumber = document.getElementById('billRoomNumber').textContent;
+        const roomId = roomsData.find(room => room.room_number === document.getElementById('billRoomNumber').textContent).id;
         
-        // 实际项目中，这里会发送API请求完成结账流程
-        alert(`房间 ${roomNumber} 已成功完成结账`);
-        
-        // 更新房间状态
-        const roomIndex = roomsData.findIndex(room => room.roomNumber === roomNumber);
-        if (roomIndex !== -1) {
-          roomsData[roomIndex].status = 'available';
-          roomsData[roomIndex].guestName = null;
-          roomsData[roomIndex].checkIn = null;
-          roomsData[roomIndex].acStatus = 'off';
-          roomsData[roomIndex].acMode = null;
-          roomsData[roomIndex].fanSpeed = null;
-          roomsData[roomIndex].acCost = 0;
-          roomsData[roomIndex].temperature = 25.0;
-        }
-        
-        // 隐藏结账表单并切换到房间管理
-        document.getElementById('checkoutForm').style.display = 'none';
-        document.querySelector('.reception-tab[data-tab="rooms"]').click();
-        renderRooms();
+        // 发送退房请求
+        fetch(`/api/reception/checkout/${roomId}/check_out/`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCsrfToken()
+          }
+        })
+        .then(response => response.json())
+        .then(data => {
+          if (data.error) {
+            showAlert(data.error, '退房失败');
+          } else {
+            showAlert(`房间 ${data.message.split(' ')[1]} 已成功完成结账，费用: ¥${data.total_cost.toFixed(2)}`, '退房成功');
+            
+            // 隐藏结账表单
+            document.getElementById('checkoutForm').style.display = 'none';
+            const overlay = document.getElementById('checkoutOverlay');
+            if (overlay) {
+              document.body.removeChild(overlay);
+            }
+            
+            // 刷新房间列表
+            fetchRooms();
+          }
+        })
+        .catch(error => {
+          console.error('退房请求失败:', error);
+          showAlert('退房请求发送失败，请重试', '系统错误');
+        });
       });
       
-      // 初始渲染房间列表
-      renderRooms();
+      // 添加搜索功能
+      document.getElementById('roomSearchBtn').addEventListener('click', () => {
+        const searchText = document.getElementById('roomSearchInput').value.trim().toLowerCase();
+        
+        if (!searchText) {
+          // 如果搜索框为空，显示全部房间
+          renderRooms();
+          return;
+        }
+        
+        // 根据房间号或客人姓名过滤房间
+        const filteredRooms = roomsData.filter(room => {
+          // 匹配房间号
+          if (room.room_number.toLowerCase().includes(searchText)) {
+            return true;
+          }
+          
+          // 匹配客人姓名(只有已入住的房间才有客人信息)
+          if (room.is_occupied && room.guest_name && 
+              room.guest_name.toLowerCase().includes(searchText)) {
+            return true;
+          }
+          
+          return false;
+        });
+        
+        if (filteredRooms.length === 0) {
+          showAlert(`未找到匹配 "${searchText}" 的房间或客人`);
+        }
+        
+        renderRooms(filteredRooms);
+      });
+      
+      // 监听搜索框的回车键事件
+      document.getElementById('roomSearchInput').addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+          document.getElementById('roomSearchBtn').click();
+        }
+      });
+      
+      // 初始获取房间数据
+      fetchRooms();
     });
   </script>
-  
-  <style>
-    /* 模态框样式 */
-    .modal {
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      background-color: rgba(0, 0, 0, 0.5);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      z-index: 1000;
-    }
-    
-    .modal-content {
-      background-color: white;
-      border-radius: var(--border-radius);
-      width: 100%;
-      max-width: 600px;
-      box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
-    }
-    
-    .modal-header {
-      padding: 15px 20px;
-      border-bottom: 1px solid #eee;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
-    
-    .modal-body {
-      padding: 20px;
-    }
-    
-    .modal-footer {
-      padding: 15px 20px;
-      border-top: 1px solid #eee;
-      display: flex;
-      justify-content: flex-end;
-      gap: 10px;
-    }
-    
-    .close-modal {
-      cursor: pointer;
-      font-size: 1.5rem;
-    }
-  </style>
 </body>
 </html> 

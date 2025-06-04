@@ -1,0 +1,349 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>登录 - 中央温控系统</title>
+    <link rel="stylesheet" href="{% static 'css/main.css' %}">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+    <style>
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background: url('{% static "img/control_panel.png" %}') no-repeat center center fixed;
+            background-size: cover;
+            font-family: "Microsoft YaHei", Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+        }
+        .login-container {
+            background-color: rgba(255, 255, 255, 0.95);
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+            text-align: center;
+            width: 380px;
+            position: relative;
+            overflow: hidden;
+            backdrop-filter: blur(5px);
+        }
+        .login-header {
+            margin-bottom: 30px;
+        }
+        .login-header h1 {
+            color: #333;
+            font-size: 24px;
+            margin-bottom: 10px;
+            font-weight: 500;
+        }
+        .login-header .logo {
+            width: 80px;
+            height: 80px;
+            margin: 0 auto 15px;
+            background-color: #1E90FF;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        .login-header .logo i {
+            font-size: 40px;
+            color: white;
+        }
+        .login-container select,
+        .login-container input[type="text"],
+        .login-container input[type="password"] {
+            width: 100%;
+            padding: 12px 15px;
+            margin-bottom: 20px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+            font-size: 16px;
+            transition: border-color 0.3s;
+        }
+        .login-container select:focus,
+        .login-container input[type="text"]:focus,
+        .login-container input[type="password"]:focus {
+            border-color: #1E90FF;
+            outline: none;
+            box-shadow: 0 0 0 2px rgba(30, 144, 255, 0.2);
+        }
+        .login-container button {
+            width: 100%;
+            padding: 12px;
+            background-color: #1E90FF;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+            transition: background-color 0.3s;
+        }
+        .login-container button:hover {
+            background-color: #187bcd;
+        }
+        .login-container .form-group {
+            margin-bottom: 20px;
+            text-align: left;
+        }
+        .login-container .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+            color: #555;
+            font-size: 14px;
+        }
+        .hidden {
+            display: none;
+        }
+        .role-selector {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 25px;
+        }
+        .role-option {
+            flex: 1;
+            padding: 15px 10px;
+            text-align: center;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin: 0 5px;
+        }
+        .role-option:hover {
+            border-color: #1E90FF;
+        }
+        .role-option.selected {
+            border-color: #1E90FF;
+            background-color: rgba(30, 144, 255, 0.1);
+        }
+        .role-option i {
+            font-size: 24px;
+            margin-bottom: 8px;
+            color: #1E90FF;
+        }
+        .role-option span {
+            display: block;
+            font-size: 14px;
+        }
+        .footer-links {
+            margin-top: 20px;
+            font-size: 12px;
+            color: #777;
+        }
+        .footer-links a {
+            color: #1E90FF;
+            text-decoration: none;
+        }
+        .footer-links a:hover {
+            text-decoration: underline;
+        }
+        .version {
+            position: absolute;
+            bottom: 10px;
+            right: 10px;
+            font-size: 11px;
+            color: #aaa;
+        }
+        .error-message {
+            color: #dc3545;
+            font-size: 14px;
+            margin-bottom: 15px;
+            text-align: center;
+            padding: 8px;
+            background-color: rgba(220, 53, 69, 0.1);
+            border-radius: 4px;
+            display: none;
+        }
+        .hotel-desc {
+            margin-top: 15px;
+            font-size: 13px;
+            color: #666;
+            line-height: 1.5;
+        }
+        .register-link {
+            margin-top: 15px;
+            font-size: 14px;
+        }
+        .register-link a {
+            color: #1E90FF;
+            text-decoration: none;
+        }
+        .register-link a:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <div class="login-container">
+        <div class="login-header">
+            <div class="logo">
+                <i class="bi bi-thermometer-half"></i>
+            </div>
+        <h1>中央温控系统登录</h1>
+        </div>
+        
+        <div class="error-message" id="errorMessage">
+            {% if error_message %}
+            {{ error_message }}
+            {% endif %}
+        </div>
+        
+        <form method="POST" action="{% url 'login_process' %}" id="loginForm">
+            {% csrf_token %}
+            
+            <input type="hidden" id="role_input" name="role" value="">
+            
+            <div class="role-selector">
+                <div class="role-option" data-role="customer">
+                    <i class="bi bi-person"></i>
+                    <span>客户</span>
+                </div>
+                <div class="role-option" data-role="reception">
+                    <i class="bi bi-reception-4"></i>
+                    <span>前台</span>
+                </div>
+                <div class="role-option" data-role="admin">
+                    <i class="bi bi-gear"></i>
+                    <span>管理员</span>
+                </div>
+                <div class="role-option" data-role="manager">
+                    <i class="bi bi-briefcase"></i>
+                    <span>经理</span>
+                </div>
+            </div>
+
+            <!-- 客户登录字段 -->
+            <div class="customer-fields hidden">
+                <div class="form-group">
+                    <label for="room_number">房间号:</label>
+                    <input type="text" id="room_number" name="room_number" placeholder="请输入您的房间号">
+                </div>
+
+                <div class="form-group">
+                    <label for="guest_name">入住人姓名:</label>
+                    <input type="text" id="guest_name" name="guest_name" placeholder="请输入入住人姓名">
+                </div>
+                
+                <div class="form-group">
+                    <label for="id_number">身份证号:</label>
+                    <input type="text" id="id_number" name="id_number" placeholder="请输入入住人身份证号">
+                </div>
+            </div>
+
+            <!-- 员工登录字段 -->
+            <div class="staff-fields hidden">
+                <div class="form-group">
+                    <label for="username">用户名:</label>
+                    <input type="text" id="username" name="username" placeholder="请输入用户名">
+                </div>
+
+            <div class="form-group">
+                    <label for="password">密码:</label>
+                    <input type="password" id="password" name="password" placeholder="请输入密码">
+                </div>
+            </div>
+
+            <button type="submit" id="login-btn">登录</button>
+            
+            <div class="register-link">
+                员工尚未注册? <a href="{% url 'register_page' %}">创建账号</a>
+            </div>
+
+            <div class="hotel-desc">
+                波特普大学快捷廉价酒店 - 节能环保温控系统
+            </div>
+
+            <div class="footer-links">
+                <a href="#">无法登录?</a> | <a href="#">系统帮助</a>
+            </div>
+        </form>
+        
+        <div class="version">v1.0.0</div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const roleOptions = document.querySelectorAll('.role-option');
+            const roleInput = document.getElementById('role_input');
+            const customerFields = document.querySelector('.customer-fields');
+            const staffFields = document.querySelector('.staff-fields');
+            const roomNumberInput = document.getElementById('room_number');
+            const guestNameInput = document.getElementById('guest_name');
+            const idNumberInput = document.getElementById('id_number');
+            const usernameInput = document.getElementById('username');
+            const passwordInput = document.getElementById('password');
+            const loginBtn = document.getElementById('login-btn');
+            const errorMessage = document.getElementById('errorMessage');
+            const loginForm = document.getElementById('loginForm');
+            
+            // 显示错误信息
+            if (errorMessage.textContent.trim() !== '') {
+                errorMessage.style.display = 'block';
+            }
+            
+            roleOptions.forEach(option => {
+                option.addEventListener('click', function() {
+                    // 移除其他选项的选中状态
+                    roleOptions.forEach(opt => opt.classList.remove('selected'));
+                    
+                    // 添加当前选项的选中状态
+                    this.classList.add('selected');
+                    
+                    // 设置隐藏输入字段的值
+                    const role = this.getAttribute('data-role');
+                    roleInput.value = role;
+                    
+                    // 根据角色显示不同的输入字段
+                    if (role === 'customer') {
+                        customerFields.classList.remove('hidden');
+                        staffFields.classList.add('hidden');
+                    } else {
+                        // 对于其他角色，显示用户名和密码，隐藏客户字段
+                        customerFields.classList.add('hidden');
+                        staffFields.classList.remove('hidden');
+                    }
+                });
+            });
+            
+            // 处理表单提交
+            loginForm.addEventListener('submit', function(event) {
+                // 确保选择了角色
+                if (!roleInput.value) {
+                    event.preventDefault();
+                    errorMessage.textContent = '请选择登录角色';
+                    errorMessage.style.display = 'block';
+                    return;
+                }
+                
+                // 验证客户登录字段
+                if (roleInput.value === 'customer') {
+                    if (!roomNumberInput.value || !guestNameInput.value || !idNumberInput.value) {
+                        event.preventDefault();
+                        errorMessage.textContent = '请填写所有客户登录信息';
+                        errorMessage.style.display = 'block';
+                        return;
+                    }
+                } 
+                // 验证员工登录字段
+                else {
+                    if (!usernameInput.value || !passwordInput.value) {
+                        event.preventDefault();
+                        errorMessage.textContent = '请填写用户名和密码';
+                        errorMessage.style.display = 'block';
+                        return;
+                    }
+                }
+                
+                // 表单验证通过，允许提交
+            });
+        });
+    </script>
+</body>
+</html> 

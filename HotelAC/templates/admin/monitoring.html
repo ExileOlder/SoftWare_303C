@@ -21,9 +21,48 @@
       border-radius: 15px;
       box-shadow: 0 8px 30px rgba(0, 0, 0, 0.2);
     }
+    
+    .back-button {
+      position: fixed;
+      top: 20px;
+      left: 20px;
+      background-color: rgba(0, 0, 0, 0.6);
+      color: white;
+      border: none;
+      border-radius: 50%;
+      width: 50px;
+      height: 50px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      cursor: pointer;
+      z-index: 100;
+      transition: all 0.3s ease;
+    }
+    
+    .back-button:hover {
+      background-color: rgba(0, 0, 0, 0.8);
+      transform: scale(1.1);
+    }
+    
+    .back-button i {
+      font-size: 24px;
+    }
+    
+    .admin-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 20px 30px;
+      border-bottom: 1px solid #eee;
+    }
   </style>
 </head>
 <body>
+  <a href="{% url 'login_page' %}" class="back-button" title="返回登录页面">
+    <i class="bi bi-arrow-left"></i>
+  </a>
+  
   <div class="admin-container">
     <div class="admin-header">
       <h1 class="admin-title">空调管理系统 - 管理员监控面板</h1>
@@ -226,116 +265,128 @@
 
   <script>
     document.addEventListener('DOMContentLoaded', function() {
-      // 初始化房间数据 (实际项目中应该从API获取)
-      const roomsData = [
-        { 
-          roomNumber: '101', 
-          status: 'active', 
-          currentTemp: 23.5, 
-          targetTemp: 22.0,
-          mode: 'cooling',
-          fanSpeed: 'medium',
-          serviceDuration: '01:25:30',
-          fee: 8.50
-        },
-        { 
-          roomNumber: '102', 
-          status: 'off', 
-          currentTemp: 25.0, 
-          targetTemp: 25.0,
-          mode: null,
-          fanSpeed: null,
-          serviceDuration: '00:00:00',
-          fee: 0.00
-        },
-        { 
-          roomNumber: '103', 
-          status: 'active', 
-          currentTemp: 24.0, 
-          targetTemp: 27.0,
-          mode: 'heating',
-          fanSpeed: 'high',
-          serviceDuration: '00:45:12',
-          fee: 12.75
-        },
-        { 
-          roomNumber: '104', 
-          status: 'off', 
-          currentTemp: 25.0, 
-          targetTemp: 25.0,
-          mode: null,
-          fanSpeed: null,
-          serviceDuration: '00:00:00',
-          fee: 0.00
-        },
-        { 
-          roomNumber: '105', 
-          status: 'waiting', 
-          currentTemp: 23.0, 
-          targetTemp: 22.0,
-          mode: 'cooling',
-          fanSpeed: 'low',
-          serviceDuration: '00:00:00',
-          fee: 0.00
-        },
-        { 
-          roomNumber: '106', 
-          status: 'waiting', 
-          currentTemp: 26.0, 
-          targetTemp: 28.0,
-          mode: 'heating',
-          fanSpeed: 'medium',
-          serviceDuration: '00:00:00',
-          fee: 0.00
-        },
-        { 
-          roomNumber: '107', 
-          status: 'active', 
-          currentTemp: 24.5, 
-          targetTemp: 23.0,
-          mode: 'cooling',
-          fanSpeed: 'high',
-          serviceDuration: '02:10:45',
-          fee: 15.20
-        }
-      ];
+      // 存储数据的变量
+      let roomsData = [];
+      let serviceQueueData = [];
+      let waitingQueueData = [];
       
-      // 队列数据 (实际项目中应该从API获取)
-      const serviceQueueData = [
-        { 
-          roomNumber: '101', 
-          fanSpeed: 'medium', 
-          startTime: '2023-05-20 10:35',
-          duration: '01:25:30'
-        },
-        { 
-          roomNumber: '103', 
-          fanSpeed: 'high', 
-          startTime: '2023-05-20 11:15',
-          duration: '00:45:12'
-        },
-        { 
-          roomNumber: '107', 
-          fanSpeed: 'high', 
-          startTime: '2023-05-20 09:50',
-          duration: '02:10:45'
+      // 初始化函数
+      async function initialize() {
+        try {
+          // 获取初始数据
+          await fetchAllData();
+          
+          // 初始化UI
+          renderRoomsTable();
+          renderServiceQueue();
+          renderWaitingQueue();
+          updateOverview();
+          
+          // 建立WebSocket连接
+          connectWebSocket();
+          
+          // 设置定时刷新（备用方案，以防WebSocket连接中断）
+          setInterval(fetchAllData, 30000); // 每30秒刷新一次
+        } catch (error) {
+          console.error('初始化失败:', error);
+          alert('加载数据失败，请刷新页面重试');
         }
-      ];
+      }
       
-      const waitingQueueData = [
-        { 
-          roomNumber: '105', 
-          fanSpeed: 'low', 
-          requestTime: '2023-05-20 11:45',
-          waitingTime: '00:15:30'
-        },
-        { 
-          roomNumber: '106', 
-          fanSpeed: 'medium', 
-          requestTime: '2023-05-20 11:50',
-          waitingTime: '00:10:15'
+      // 获取所有数据
+      async function fetchAllData() {
+        try {
+          const response = await fetch('/api/admin/monitor/');
+          if (!response.ok) {
+            throw new Error(`HTTP错误：${response.status}`);
+          }
+          const data = await response.json();
+          updateRoomsData(data);
+          renderRoomsTable('all');
+          renderServiceQueue();
+          renderWaitingQueue();
+          updateOverview();
+        } catch (error) {
+          console.error('获取数据失败:', error);
         }
-      ];
+      }
+      
+      // 更新房间数据
+      function updateRoomsData(monitorData) {
+        // 先清除旧数据
+        roomsData = [];
+        
+        // 处理服务队列中的房间
+        monitorData.servicing_rooms.forEach(room => {
+          const serviceDuration = room.service_duration || '00:00:00';
+          const currentCost = room.current_cost !== undefined ? parseFloat(room.current_cost) : 0;
+          
+          roomsData.push({
+            id: room.id,
+            roomNumber: room.room_number,
+            status: 'active',
+            currentTemp: room.current_temp,
+            targetTemp: room.target_temp,
+            mode: room.ac_mode.toLowerCase() === 'cool' ? 'cooling' : 'heating',
+            fanSpeed: room.fan_speed.toLowerCase(),
+            serviceDuration: serviceDuration,
+            fee: currentCost
+          });
+        });
+        
+        // 处理等待队列中的房间
+        monitorData.waiting_queue.forEach(queue => {
+          const waitDuration = queue.wait_duration_formatted || '00:00:00';
+          const currentCost = queue.current_cost !== undefined ? parseFloat(queue.current_cost) : 0;
+          
+          roomsData.push({
+            id: queue.id,
+            roomNumber: queue.room_number,
+            status: 'waiting',
+            currentTemp: queue.current_temp,
+            targetTemp: queue.target_temp,
+            mode: queue.ac_mode.toLowerCase() === 'cool' ? 'cooling' : 'heating',
+            fanSpeed: queue.fan_speed.toLowerCase(),
+            serviceDuration: waitDuration,
+            fee: currentCost
+          });
+        });
+      
+        // 处理服务队列数据
+        serviceQueueData = monitorData.servicing_rooms.map(room => {
+          const startTime = room.service_start_time ? new Date(room.service_start_time).toLocaleString('zh-CN') : '-';
+          const serviceDuration = room.service_duration || '00:00:00';
+          
+          return {
+            id: room.id,
+            roomNumber: room.room_number,
+            fanSpeed: room.fan_speed.toLowerCase(),
+            startTime: startTime,
+            duration: serviceDuration,
+            current_cost: room.current_cost !== undefined ? parseFloat(room.current_cost) : 0,
+            service_duration: serviceDuration
+          };
+        });
+        
+        // 处理等待队列数据
+        waitingQueueData = monitorData.waiting_queue.map(queue => {
+          const waitingTime = queue.wait_duration_formatted || '00:00:00';
+          
+          return {
+            id: queue.id,
+            roomNumber: queue.room_number,
+            fanSpeed: queue.fan_speed.toLowerCase(),
+            requestTime: queue.request_time ? new Date(queue.request_time).toLocaleString('zh-CN') : '-',
+            waitingTime: waitingTime,
+            current_cost: queue.current_cost !== undefined ? parseFloat(queue.current_cost) : 0,
+            wait_duration_formatted: waitingTime
+          };
+        });
+        
+        // 更新系统参数
+        document.getElementById('maxServiceRooms').textContent = monitorData.max_service_rooms || 3;
+        document.getElementById('waitingTimeSlice').textContent = (monitorData.time_slice || 60) + '秒';
+      }
       
       // 渲染房间表格
       function renderRoomsTable(filter = 'all') {
@@ -395,11 +446,11 @@
               ${room.status !== 'off' ? `
                 <button class="btn btn-sm" title="查看详情"><i class="bi bi-info-circle"></i></button>
                 ${room.status === 'active' ? `
-                  <button class="btn btn-sm btn-danger suspend-btn" data-room="${room.roomNumber}" title="暂停服务">
+                  <button class="btn btn-sm btn-danger suspend-btn" data-room="${room.id}" title="暂停服务">
                     <i class="bi bi-pause-fill"></i>
                   </button>
                 ` : room.status === 'waiting' ? `
-                  <button class="btn btn-sm btn-success prioritize-btn" data-room="${room.roomNumber}" title="优先服务">
+                  <button class="btn btn-sm btn-success prioritize-btn" data-room="${room.id}" title="优先服务">
                     <i class="bi bi-arrow-up-circle"></i>
                   </button>
                 ` : ''}
@@ -413,16 +464,16 @@
         // 添加暂停服务按钮事件
         document.querySelectorAll('.suspend-btn').forEach(btn => {
           btn.addEventListener('click', function() {
-            const roomNumber = this.getAttribute('data-room');
-            suspendService(roomNumber);
+            const roomId = this.getAttribute('data-room');
+            suspendService(roomId);
           });
         });
         
         // 添加优先服务按钮事件
         document.querySelectorAll('.prioritize-btn').forEach(btn => {
           btn.addEventListener('click', function() {
-            const roomNumber = this.getAttribute('data-room');
-            prioritizeService(roomNumber);
+            const roomId = this.getAttribute('data-room');
+            prioritizeService(roomId);
           });
         });
       }
@@ -441,6 +492,10 @@
           const queueItem = document.createElement('div');
           queueItem.className = 'queue-item';
           
+          // 显示服务时间和费用
+          const currentCost = item.current_cost !== undefined ? item.current_cost.toFixed(2) : '0.00';
+          const serviceDuration = item.service_duration || '00:00:00';
+          
           queueItem.innerHTML = `
             <div class="queue-item-room">${item.roomNumber}</div>
             <div class="queue-item-info">
@@ -448,10 +503,11 @@
                          item.fanSpeed === 'medium' ? '中风' : '高风'}</div>
               <div class="queue-item-details">
                 <span>开始时间: ${item.startTime}</span>
-                <span>服务时长: ${item.duration}</span>
+                <span>服务时长: ${serviceDuration}</span>
+                <span>当前费用: ¥${currentCost}</span>
               </div>
             </div>
-            <button class="btn btn-sm btn-danger" data-room="${item.roomNumber}">
+            <button class="btn btn-sm btn-danger" data-room="${item.id}">
               <i class="bi bi-x-circle"></i>
             </button>
           `;
@@ -462,8 +518,8 @@
         // 添加移除服务按钮事件
         queueList.querySelectorAll('.btn-danger').forEach(btn => {
           btn.addEventListener('click', function() {
-            const roomNumber = this.getAttribute('data-room');
-            removeFromServiceQueue(roomNumber);
+            const roomId = this.getAttribute('data-room');
+            removeFromServiceQueue(roomId);
           });
         });
       }
@@ -482,6 +538,10 @@
           const queueItem = document.createElement('div');
           queueItem.className = 'queue-item';
           
+          // 显示等待时间和费用
+          const currentCost = item.current_cost !== undefined ? item.current_cost.toFixed(2) : '0.00';
+          const waitDuration = item.wait_duration_formatted || '00:00:00';
+          
           queueItem.innerHTML = `
             <div class="queue-item-room">${item.roomNumber}</div>
             <div class="queue-item-info">
@@ -489,10 +549,11 @@
                          item.fanSpeed === 'medium' ? '中风' : '高风'}</div>
               <div class="queue-item-details">
                 <span>请求时间: ${item.requestTime}</span>
-                <span>等待时长: ${item.waitingTime}</span>
+                <span>等待时长: ${waitDuration}</span>
+                <span>当前费用: ¥${currentCost}</span>
               </div>
             </div>
-            <button class="btn btn-sm btn-success" data-room="${item.roomNumber}">
+            <button class="btn btn-sm btn-success" data-room="${item.id}">
               <i class="bi bi-arrow-up-circle"></i>
             </button>
           `;
@@ -503,163 +564,81 @@
         // 添加优先服务按钮事件
         queueList.querySelectorAll('.btn-success').forEach(btn => {
           btn.addEventListener('click', function() {
-            const roomNumber = this.getAttribute('data-room');
-            prioritizeService(roomNumber);
+            const roomId = this.getAttribute('data-room');
+            prioritizeService(roomId);
           });
         });
       }
       
       // 暂停服务
-      function suspendService(roomNumber) {
-        // 实际项目中，这里会发送API请求暂停服务
-        console.log(`暂停房间 ${roomNumber} 的服务`);
-        
-        // 从服务队列中移除
-        const index = serviceQueueData.findIndex(item => item.roomNumber === roomNumber);
-        if (index !== -1) {
-          const removedItem = serviceQueueData.splice(index, 1)[0];
-          
-          // 添加到等待队列
-          waitingQueueData.push({
-            roomNumber: removedItem.roomNumber,
-            fanSpeed: removedItem.fanSpeed,
-            requestTime: new Date().toLocaleString('zh-CN', {
-              year: 'numeric',
-              month: '2-digit',
-              day: '2-digit',
-              hour: '2-digit',
-              minute: '2-digit'
-            }).replace(/\//g, '-'),
-            waitingTime: '00:00:00'
+      async function suspendService(roomId) {
+        try {
+          // 发送API请求暂停服务
+          const response = await fetch(`/api/admin/monitor/${roomId}/suspend/`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'X-CSRFToken': getCSRFToken()
+            }
           });
           
-          // 更新房间状态
-          const roomIndex = roomsData.findIndex(room => room.roomNumber === roomNumber);
-          if (roomIndex !== -1) {
-            roomsData[roomIndex].status = 'waiting';
-            roomsData[roomIndex].serviceDuration = '00:00:00';
+          if (!response.ok) {
+            throw new Error(`HTTP错误：${response.status}`);
           }
           
-          // 更新显示
-          renderRoomsTable();
-          renderServiceQueue();
-          renderWaitingQueue();
-          updateOverview();
+          // 重新获取数据
+          await fetchAllData();
+        } catch (error) {
+          console.error('暂停服务失败:', error);
+          alert('操作失败: ' + error.message);
         }
       }
       
       // 优先服务
-      function prioritizeService(roomNumber) {
-        // 实际项目中，这里会发送API请求设置优先服务
-        console.log(`设置房间 ${roomNumber} 优先服务`);
-        
-        // 从等待队列中移除
-        const index = waitingQueueData.findIndex(item => item.roomNumber === roomNumber);
-        if (index !== -1) {
-          const removedItem = waitingQueueData.splice(index, 1)[0];
-          
-          // 如果服务队列已满，移除一个房间
-          if (serviceQueueData.length >= 3) {
-            const removedService = serviceQueueData.pop();
-            
-            // 将被移除的服务添加到等待队列
-            waitingQueueData.push({
-              roomNumber: removedService.roomNumber,
-              fanSpeed: removedService.fanSpeed,
-              requestTime: new Date().toLocaleString('zh-CN', {
-                year: 'numeric',
-                month: '2-digit',
-                day: '2-digit',
-                hour: '2-digit',
-                minute: '2-digit'
-              }).replace(/\//g, '-'),
-              waitingTime: '00:00:00'
-            });
-            
-            // 更新被移除房间的状态
-            const removedRoomIndex = roomsData.findIndex(room => room.roomNumber === removedService.roomNumber);
-            if (removedRoomIndex !== -1) {
-              roomsData[removedRoomIndex].status = 'waiting';
-              roomsData[removedRoomIndex].serviceDuration = '00:00:00';
+      async function prioritizeService(roomId) {
+        try {
+          // 发送API请求设置优先服务
+          const response = await fetch(`/api/admin/monitor/${roomId}/prioritize/`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'X-CSRFToken': getCSRFToken()
             }
-          }
-          
-          // 添加到服务队列
-          serviceQueueData.unshift({
-            roomNumber: removedItem.roomNumber,
-            fanSpeed: removedItem.fanSpeed,
-            startTime: new Date().toLocaleString('zh-CN', {
-              year: 'numeric',
-              month: '2-digit',
-              day: '2-digit',
-              hour: '2-digit',
-              minute: '2-digit'
-            }).replace(/\//g, '-'),
-            duration: '00:00:00'
           });
           
-          // 更新房间状态
-          const roomIndex = roomsData.findIndex(room => room.roomNumber === roomNumber);
-          if (roomIndex !== -1) {
-            roomsData[roomIndex].status = 'active';
+          if (!response.ok) {
+            throw new Error(`HTTP错误：${response.status}`);
           }
           
-          // 更新显示
-          renderRoomsTable();
-          renderServiceQueue();
-          renderWaitingQueue();
-          updateOverview();
+          // 重新获取数据
+          await fetchAllData();
+        } catch (error) {
+          console.error('设置优先服务失败:', error);
+          alert('操作失败: ' + error.message);
         }
       }
       
       // 从服务队列中移除
-      function removeFromServiceQueue(roomNumber) {
-        // 实际项目中，这里会发送API请求移除服务
-        console.log(`从服务队列中移除房间 ${roomNumber}`);
-        
-        // 从服务队列中移除
-        const index = serviceQueueData.findIndex(item => item.roomNumber === roomNumber);
-        if (index !== -1) {
-          serviceQueueData.splice(index, 1);
-          
-          // 更新房间状态
-          const roomIndex = roomsData.findIndex(room => room.roomNumber === roomNumber);
-          if (roomIndex !== -1) {
-            roomsData[roomIndex].status = 'off';
-            roomsData[roomIndex].mode = null;
-            roomsData[roomIndex].fanSpeed = null;
-            roomsData[roomIndex].serviceDuration = '00:00:00';
-          }
-          
-          // 如果等待队列不为空，将第一个等待的房间添加到服务队列
-          if (waitingQueueData.length > 0) {
-            const nextRoom = waitingQueueData.shift();
-            
-            serviceQueueData.push({
-              roomNumber: nextRoom.roomNumber,
-              fanSpeed: nextRoom.fanSpeed,
-              startTime: new Date().toLocaleString('zh-CN', {
-                year: 'numeric',
-                month: '2-digit',
-                day: '2-digit',
-                hour: '2-digit',
-                minute: '2-digit'
-              }).replace(/\//g, '-'),
-              duration: '00:00:00'
-            });
-            
-            // 更新房间状态
-            const nextRoomIndex = roomsData.findIndex(room => room.roomNumber === nextRoom.roomNumber);
-            if (nextRoomIndex !== -1) {
-              roomsData[nextRoomIndex].status = 'active';
+      async function removeFromServiceQueue(roomId) {
+        try {
+          // 发送API请求移除服务
+          const response = await fetch(`/api/admin/monitor/${roomId}/remove/`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'X-CSRFToken': getCSRFToken()
             }
+          });
+          
+          if (!response.ok) {
+            throw new Error(`HTTP错误：${response.status}`);
           }
           
-          // 更新显示
-          renderRoomsTable();
-          renderServiceQueue();
-          renderWaitingQueue();
-          updateOverview();
+          // 重新获取数据
+          await fetchAllData();
+        } catch (error) {
+          console.error('移除服务失败:', error);
+          alert('操作失败: ' + error.message);
         }
       }
       
@@ -668,7 +647,7 @@
         document.getElementById('activeRooms').textContent = serviceQueueData.length;
         document.getElementById('waitingQueue').textContent = waitingQueueData.length;
         
-        // 计算总功耗 (实际项目中应该从API获取)
+        // 计算总功耗
         let totalPower = 0;
         serviceQueueData.forEach(item => {
           if (item.fanSpeed === 'high') totalPower += 2.0;
@@ -683,6 +662,19 @@
           totalFee += room.fee;
         });
         document.getElementById('totalFee').textContent = '¥' + totalFee.toFixed(2);
+      }
+      
+      // 获取CSRF Token
+      function getCSRFToken() {
+        const csrfCookie = document.cookie.split(';')
+          .find(cookie => cookie.trim().startsWith('csrftoken='));
+        
+        if (csrfCookie) {
+          return csrfCookie.split('=')[1];
+        }
+        
+        const metaTag = document.querySelector('meta[name="csrf-token"]');
+        return metaTag ? metaTag.getAttribute('content') : '';
       }
       
       // 初始化筛选按钮
@@ -726,7 +718,7 @@
       });
       
       // 保存设置
-      document.getElementById('saveSettingsBtn').addEventListener('click', function() {
+      document.getElementById('saveSettingsBtn').addEventListener('click', async function() {
         // 获取设置值
         const maxServiceRooms = document.getElementById('setMaxServiceRooms').value;
         const waitingTimeSlice = document.getElementById('setWaitingTimeSlice').value;
@@ -737,15 +729,33 @@
         const heatingMax = document.getElementById('setHeatingMax').value;
         const feeRate = document.getElementById('setFeeRate').value;
         
-        // 实际项目中，这里会发送API请求更新设置
-        console.log('保存系统设置:', {
-          maxServiceRooms,
-          waitingTimeSlice,
-          schedulingStrategy,
-          coolingRange: [coolingMin, coolingMax],
-          heatingRange: [heatingMin, heatingMax],
-          feeRate
-        });
+        try {
+          // 发送API请求更新设置
+          const response = await fetch('/api/admin/settings/', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'X-CSRFToken': getCSRFToken()
+            },
+            body: JSON.stringify({
+              scheduler: {
+                max_service_rooms: parseInt(maxServiceRooms),
+                default_time_slice: parseInt(waitingTimeSlice),
+                scheduling_strategy: schedulingStrategy
+              },
+              temperature: {
+                cooling_range: [parseFloat(coolingMin), parseFloat(coolingMax)],
+                heating_range: [parseFloat(heatingMin), parseFloat(heatingMax)]
+              },
+              cost: {
+                fee_rate: parseFloat(feeRate)
+              }
+            })
+          });
+          
+          if (!response.ok) {
+            throw new Error(`HTTP错误：${response.status}`);
+          }
         
         // 更新显示
         document.getElementById('maxServiceRooms').textContent = maxServiceRooms;
@@ -769,93 +779,63 @@
         document.getElementById('schedulingStrategy').textContent = strategyText;
         
         document.getElementById('settingsModal').style.display = 'none';
+        } catch (error) {
+          console.error('保存设置失败:', error);
+          alert('保存设置失败: ' + error.message);
+        }
       });
       
       // 刷新按钮点击事件
-      document.getElementById('refreshBtn').addEventListener('click', function() {
-        // 实际项目中，这里会重新获取所有数据
-        renderRoomsTable();
-        renderServiceQueue();
-        renderWaitingQueue();
-        updateOverview();
+      document.getElementById('refreshBtn').addEventListener('click', async function() {
+        await fetchAllData();
       });
       
-      // 实时更新数据 (模拟)
-      setInterval(() => {
-        // 实际项目中，这里应该通过WebSocket或轮询获取最新数据
-        // 更新服务时长
-        serviceQueueData.forEach(item => {
-          // 解析当前时长
-          const [hours, minutes, seconds] = item.duration.split(':').map(Number);
-          // 增加一秒
-          let newSeconds = seconds + 1;
-          let newMinutes = minutes;
-          let newHours = hours;
+      // 连接WebSocket
+      function connectWebSocket() {
+        try {
+          console.log("尝试连接WebSocket...");
+          const socketProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+          const socketUrl = `${socketProtocol}//${window.location.host}/ws/admin_monitor/`;
           
-          if (newSeconds >= 60) {
-            newSeconds = 0;
-            newMinutes++;
-          }
+          console.log(`WebSocket URL: ${socketUrl}`);
+          const socket = new WebSocket(socketUrl);
           
-          if (newMinutes >= 60) {
-            newMinutes = 0;
-            newHours++;
-          }
+          socket.onopen = function(e) {
+            console.log("WebSocket连接已建立");
+          };
           
-          // 更新时长
-          item.duration = `${newHours.toString().padStart(2, '0')}:${newMinutes.toString().padStart(2, '0')}:${newSeconds.toString().padStart(2, '0')}`;
-          
-          // 更新房间服务时长
-          const roomIndex = roomsData.findIndex(room => room.roomNumber === item.roomNumber);
-          if (roomIndex !== -1) {
-            roomsData[roomIndex].serviceDuration = item.duration;
-            
-            // 增加费用 (根据风速)
-            if (item.fanSpeed === 'high') {
-              roomsData[roomIndex].fee += 1/60; // 高风 1度/分钟，每秒1/60度
-            } else if (item.fanSpeed === 'medium') {
-              roomsData[roomIndex].fee += 1/120; // 中风 1度/2分钟，每秒1/120度
-            } else {
-              roomsData[roomIndex].fee += 1/180; // 低风 1度/3分钟，每秒1/180度
-            }
-          }
-        });
-        
-        // 更新等待时长
-        waitingQueueData.forEach(item => {
-          // 解析当前时长
-          const [hours, minutes, seconds] = item.waitingTime.split(':').map(Number);
-          // 增加一秒
-          let newSeconds = seconds + 1;
-          let newMinutes = minutes;
-          let newHours = hours;
-          
-          if (newSeconds >= 60) {
-            newSeconds = 0;
-            newMinutes++;
-          }
-          
-          if (newMinutes >= 60) {
-            newMinutes = 0;
-            newHours++;
-          }
-          
-          // 更新时长
-          item.waitingTime = `${newHours.toString().padStart(2, '0')}:${newMinutes.toString().padStart(2, '0')}:${newSeconds.toString().padStart(2, '0')}`;
-        });
-        
-        // 更新显示
+          socket.onmessage = function(e) {
+            console.log("接收到WebSocket消息", e.data);
+            try {
+              const data = JSON.parse(e.data);
+              if (data.type === "monitor.update") {
+                console.log("收到监控数据更新", data.message);
+                updateRoomsData(data.message);
         renderRoomsTable(document.querySelector('.filter-btn.active').getAttribute('data-filter'));
         renderServiceQueue();
         renderWaitingQueue();
         updateOverview();
-      }, 1000);
+              }
+            } catch (error) {
+              console.error("WebSocket消息处理错误", error);
+            }
+          };
+          
+          socket.onclose = function(e) {
+            console.log("WebSocket连接已关闭，将在3秒后重新连接", e);
+            setTimeout(connectWebSocket, 3000);
+          };
+          
+          socket.onerror = function(e) {
+            console.error("WebSocket错误", e);
+          };
+        } catch (error) {
+          console.error("WebSocket连接失败", error);
+        }
+      }
       
       // 初始化
-      renderRoomsTable();
-      renderServiceQueue();
-      renderWaitingQueue();
-      updateOverview();
+      initialize();
     });
   </script>
   
@@ -880,6 +860,9 @@
       width: 100%;
       max-width: 600px;
       box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+      margin: 0 auto;
+      position: relative;
+      transform: none !important;
     }
     
     .modal-header {
