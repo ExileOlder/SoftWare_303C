@@ -93,9 +93,8 @@ python manage.py runserver 0.0.0.0:8000
 
 其他用户需要通过系统注册功能创建。
 
-## 核心业务逻辑
-
-运行方法：在终端输入 python manage.py runserver
+## 运行方法
+在终端输入：python manage.py runserver
 
 ## 核心业务逻辑
 
