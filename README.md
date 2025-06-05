@@ -95,6 +95,10 @@ python manage.py runserver 0.0.0.0:8000
 
 ## 核心业务逻辑
 
+运行方法：在终端输入 python manage.py runserver
+
+## 核心业务逻辑
+
 ### 温控系统规则
 
 - **温度范围**：制冷模式（18-25度），制热模式（25-30度）
