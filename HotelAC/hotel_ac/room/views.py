@@ -33,7 +33,7 @@ class RoomControlViewSet(viewsets.ViewSet):
             ).order_by('-start_time').first()
             
             # 直接从数据库获取费用，不再进行实时计算
-            cost = float(current_usage.cost) if current_usage else 0
+            cost = float(current_usage.cost) if current_usage and current_usage.cost is not None else 0
             
             # 获取服务队列状态
             queue_status = "OFF"  # 默认为关闭
@@ -42,13 +42,13 @@ class RoomControlViewSet(viewsets.ViewSet):
                 queue_status = "WAITING"  # 如果开机，至少是等待状态
                 
                 # 检查是否在服务队列中
-            active_request = Queue.objects.filter(room=room, is_active=True).first()
+                active_request = Queue.objects.filter(room=room, is_active=True).first()
             
-            if active_request:
+                if active_request:
                     # 获取调度器实例，检查是否正在被服务
-                scheduler = get_scheduler_service()
-                if room in scheduler.service_queue:
-                    queue_status = "SERVING"
+                    scheduler = get_scheduler_service()
+                    if room in scheduler.service_queue:
+                        queue_status = "SERVING"
             
             data = serializer.data
             data.update({
@@ -98,6 +98,11 @@ class RoomControlViewSet(viewsets.ViewSet):
                 
                 # 创建使用记录
                 usage = queue_manager.start_room_ac_usage(room)
+                
+                # 验证使用记录是否创建成功
+                if not usage:
+                    logger.error(f"Failed to create ACUsage record for room {room.room_number}")
+                    return Response({"message": "空调开启失败，无法创建使用记录", "status": "error"}, status=500)
                 
                 # 立即创建队列请求并加入等待队列
                 queue_request, created = Queue.objects.update_or_create(

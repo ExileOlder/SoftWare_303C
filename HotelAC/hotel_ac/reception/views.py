@@ -111,13 +111,12 @@ class BillViewSet(viewsets.ViewSet):
                     "error": f"找不到房间 {room.room_number} 的未结算账单"
                 }, status=status.HTTP_404_NOT_FOUND)
             
-            # 计算账单详情
-            queue_manager = QueueManagerService()
-            bill_data = queue_manager.calculate_bill(
+            # 从数据库直接获取空调使用记录
+            usages = ACUsage.objects.filter(
                 room=room,
-                check_in_time=bill.check_in_time,
-                check_out_time=timezone.now() if not bill.check_out_time else bill.check_out_time
-            )
+                start_time__gte=bill.check_in_time,
+                start_time__lte=timezone.now() if not bill.check_out_time else bill.check_out_time
+            ).order_by('start_time')
             
             # 创建CSV文件内容
             csv_buffer = StringIO()
@@ -137,17 +136,18 @@ class BillViewSet(viewsets.ViewSet):
             
             # 写入每条使用记录
             total_cost = Decimal('0.00')
-            for usage in bill_data['usage_details']:
-                end_time = usage['end_time'].strftime('%Y-%m-%d %H:%M:%S') if usage['end_time'] else '使用中'
+            for usage in usages:
+                end_time = usage.end_time.strftime('%Y-%m-%d %H:%M:%S') if usage.end_time else '使用中'
+                cost = usage.cost if usage.cost is not None else Decimal('0.00')
                 csv_writer.writerow([
-                    usage['start_time'].strftime('%Y-%m-%d %H:%M:%S'),
+                    usage.start_time.strftime('%Y-%m-%d %H:%M:%S'),
                     end_time,
-                    dict(ACMode.choices).get(usage['mode'], usage['mode']),
-                    dict(FanSpeed.choices).get(usage['fan_speed'], usage['fan_speed']),
-                    f"{usage['start_temperature']}°C",
-                    f"{float(usage['cost']):.2f}"
+                    dict(ACMode.choices).get(usage.mode, usage.mode),
+                    dict(FanSpeed.choices).get(usage.fan_speed, usage.fan_speed),
+                    f"{usage.start_temperature}°C",
+                    f"{float(cost):.2f}"
                 ])
-                total_cost += Decimal(str(usage['cost']))
+                total_cost += cost
             
             # 写入账单总结
             csv_writer.writerow([])
@@ -309,7 +309,8 @@ class CheckOutViewSet(viewsets.ViewSet):
                 # 计算总费用
                 total_cost = Decimal('0.00')
                 for record in usage_records:
-                    total_cost += record.cost
+                    if record.cost is not None:
+                        total_cost += record.cost
                 
                 # 更新账单金额
                 bill.total_cost = total_cost
@@ -378,7 +379,9 @@ class CheckOutViewSet(viewsets.ViewSet):
                 # 计算持续时间（小时）
                 duration = (end_time - record.start_time).total_seconds() / 3600
                 
-                total_cost += record.cost
+                # 确保费用不为None
+                if record.cost is not None:
+                    total_cost += record.cost
                 
                 # 添加详细使用记录
                 usage_details.append({
@@ -388,8 +391,8 @@ class CheckOutViewSet(viewsets.ViewSet):
                     'duration_hours': round(duration, 2),
                     'mode': record.mode,
                     'fan_speed': record.fan_speed,
-                    'cost': float(record.cost),
-                    'energy_consumption': float(record.energy_consumption)
+                    'cost': float(record.cost) if record.cost is not None else 0.0,
+                    'energy_consumption': float(record.energy_consumption) if record.energy_consumption is not None else 0.0
                 })
             
             # 构建预览响应

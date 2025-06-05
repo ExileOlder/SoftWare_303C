@@ -216,7 +216,7 @@ class QueueManagerService:
             try:
                 # 获取最新的使用记录以确保数据一致性
                 fresh_usage = ACUsage.objects.get(id=current_usage.id)
-                
+            
                 # 计算新的总费用和能耗
                 new_cost = Decimal(fresh_usage.cost) + total_fee.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
                 new_energy = float(fresh_usage.energy_consumption) + float(energy_consumed)
@@ -289,59 +289,52 @@ class QueueManagerService:
         return 0.0
 
     def calculate_bill(self, room: Room, check_in_time, check_out_time=None):
-        """计算指定时间段内的费用"""
+        """计算指定房间在给定时间段内的账单"""
         if not check_out_time:
             check_out_time = timezone.now()
             
-        # 获取时间段内的所有使用记录
-        usage_records = ACUsage.objects.filter(
+        # 获取该房间在指定时间段内的所有空调使用记录
+        usages = ACUsage.objects.filter(
             room=room,
             start_time__gte=check_in_time,
-            start_time__lt=check_out_time
-        )
+            start_time__lte=check_out_time
+        ).order_by('start_time')
         
-        total_duration = 0
+        # 计算总费用和总能耗
         total_cost = Decimal('0.00')
-        total_energy = Decimal('0.00')
-        usage_details = []
+        total_energy = 0.0
+        total_duration = 0  # 总使用时间（秒）
         
-        for record in usage_records:
-            # 计算结束时间
-            end_time = record.end_time if record.end_time else check_out_time
-            if end_time > check_out_time:
-                end_time = check_out_time
-                
-            # 计算持续时间（小时）
-            duration = (end_time - record.start_time).total_seconds() / 3600
+        for usage in usages:
+            # 确保每条记录都有结束时间
+            end_time = usage.end_time if usage.end_time else check_out_time
             
+            # 计算使用时长
+            duration = (end_time - usage.start_time).total_seconds()
             total_duration += duration
-            total_cost += record.cost
-            total_energy += Decimal(str(record.energy_consumption))
             
-            # 添加详细使用记录
-            usage_details.append({
-                'id': record.id,
-                'start_time': record.start_time,
-                'end_time': end_time,
-                'duration_hours': round(duration, 2),
-                'mode': record.mode,
-                'fan_speed': record.fan_speed,
-                'cost': float(record.cost),
-                'energy_consumption': float(record.energy_consumption)
-            })
-            
+            # 累加费用和能耗
+            if usage.cost is not None:
+                total_cost += usage.cost
+            if usage.energy_consumption is not None:
+                total_energy += usage.energy_consumption
+        
+        # 将未结算的记录标记为已结算
+        usages.update(is_billed=True)
+        
+        # 返回账单信息
         return {
             'room_number': room.room_number,
             'check_in_time': check_in_time,
             'check_out_time': check_out_time,
-            'total_duration': total_duration,
             'total_cost': total_cost,
             'total_energy': total_energy,
-            'usage_details': usage_details  # 添加详细使用记录
+            'total_duration': total_duration,
+            'usage_count': usages.count()
         }
 
     def get_current_usage(self, room):
-        """获取房间当前的使用记录"""
+        """获取房间当前的空调使用记录"""
         return ACUsage.objects.filter(room=room, end_time__isnull=True).order_by('-start_time').first()
 
 # 可以在settings.py中配置ENERGY_PRICE_PER_UNIT_CONSUMPTION，例如：

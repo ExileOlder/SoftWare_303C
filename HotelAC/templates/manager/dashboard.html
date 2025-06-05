@@ -904,7 +904,7 @@
       </div>
       <div class="modal-body">
         <div id="userListActions" style="margin-bottom: 15px; display: none;">
-          <button class="btn btn-primary" id="mergeGuestAccountsBtn">合并重复客户账号</button>
+          <button class="btn btn-primary" id="mergeGuestAccountsBtn" style="background-color: #1E90FF; color: white; padding: 8px 15px; border: none; border-radius: 4px; cursor: pointer;">合并重复客户账号</button>
         </div>
         <div id="userListContent">
           <!-- 用户列表将在这里动态加载 -->
@@ -1089,17 +1089,37 @@
         e.preventDefault();
         
         // 显示确认对话框
-        if (confirm('确定要合并姓名和身份证号相同的客户账号吗？')) {
+        if (confirm('确定要合并姓名和身份证号相同的客户账号吗？此操作将保留一个账号并累计入住次数')) {
+          // 显示加载状态
+          document.getElementById('userListContent').innerHTML = '<div class="loading-spinner">正在合并账号，请稍候...</div>';
+          
+          // 获取CSRF令牌
+          const csrfToken = getCsrfToken();
+          console.log('CSRF Token:', csrfToken ? '已获取' : '未获取');
+          
           // 发送合并请求
           fetch('/api/manager/merge_guest_accounts/', {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
-              'X-CSRFToken': getCsrfToken()
-            }
+              'X-CSRFToken': csrfToken,
+              'X-Requested-With': 'XMLHttpRequest'
+            },
+            credentials: 'same-origin', // 确保发送cookie
+            body: JSON.stringify({}) // 发送空对象作为请求体
           })
-          .then(response => response.json())
+          .then(response => {
+            console.log('响应状态:', response.status);
+            if (!response.ok) {
+              return response.text().then(text => {
+                console.error('响应内容:', text);
+                throw new Error(`HTTP错误：${response.status}`);
+              });
+            }
+            return response.json();
+          })
           .then(data => {
+            console.log('合并结果:', data);
             if (data.error) {
               showAlert(data.error, '合并失败');
             } else {
@@ -1110,10 +1130,19 @@
           })
           .catch(error => {
             console.error('合并客户账号失败:', error);
-            showAlert('合并客户账号请求失败，请重试', '系统错误');
+            showAlert('合并客户账号请求失败: ' + error.message, '系统错误');
+            // 刷新客户列表
+            showUserList('guests', '客户列表');
           });
         }
       });
+      
+      // 获取CSRF Token
+      function getCsrfToken() {
+        return document.cookie.split('; ')
+          .find(row => row.startsWith('csrftoken='))
+          ?.split('=')[1] || '';
+      }
       
       // 标签切换
       const tabs = document.querySelectorAll('.manager-tab');
@@ -1613,18 +1642,6 @@
           });
         }
       });
-      
-      // 获取CSRF Token
-      function getCsrfToken() {
-        const cookies = document.cookie.split(';');
-        for (let cookie of cookies) {
-          const [name, value] = cookie.trim().split('=');
-          if (name === 'csrftoken') {
-            return value;
-          }
-        }
-        return '';
-      }
       
       // 默认显示报表 - 现在将通过API获取
       // Trigger initial report generation on page load for default view

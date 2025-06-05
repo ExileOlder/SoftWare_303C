@@ -14,6 +14,7 @@ urlpatterns = [
     path('settings/', views.ManagerViewSet.as_view({'post': 'save_settings'}), name='manager_settings'),
     path('records/<int:pk>/', views.ManagerViewSet.as_view({'delete': 'delete_record'}), name='delete_record'),
     path('records/clear/', views.ManagerViewSet.as_view({'delete': 'clear_records'}), name='clear_records'),
+    path('merge_guest_accounts/', views.ManagerViewSet.as_view({'post': 'merge_guest_accounts'}), name='merge_guest_accounts'),
 ]
 
 urlpatterns += router.urls 

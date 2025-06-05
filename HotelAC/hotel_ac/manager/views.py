@@ -222,11 +222,11 @@ class ManagerViewSet(viewsets.ViewSet):
             if room_number_filter:
                 queryset = queryset.filter(room__room_number=room_number_filter)
 
-            # 创建usages字典，存储重新计算过的费用
+            # 创建usages字典，存储数据库中的费用和持续时间
             updated_usages = {}
-            # 重新计算所有查询到的ACUsage记录的费用，确保与前台显示一致
+            # 获取所有查询到的ACUsage记录的费用和持续时间
             for usage in queryset:
-                # 直接使用数据库中存储的费用和持续时间
+                # 计算持续时间
                 if usage.end_time:
                     duration = usage.end_time - usage.start_time
                 else:
@@ -234,8 +234,8 @@ class ManagerViewSet(viewsets.ViewSet):
                 
                 # 存储数据库中的费用和持续时间
                 updated_usages[usage.id] = {
-                    'cost': usage.cost,
-                    'energy_consumption': usage.energy_consumption,
+                    'cost': usage.cost if usage.cost is not None else Decimal('0.00'),
+                    'energy_consumption': usage.energy_consumption if usage.energy_consumption is not None else 0.0,
                     'duration': duration
                 }
 
@@ -394,17 +394,36 @@ class ManagerViewSet(viewsets.ViewSet):
             user_type = request.query_params.get('type', 'all')
             
             if user_type == 'all':
-                # 获取所有用户
+                # 获取所有用户（包括员工和客户）
+                users_data = []
+                
+                # 获取员工用户
                 users = User.objects.all().select_related('profile')
-                data = [{
-                    'id': user.id,
-                    'username': user.username,
-                    'name': user.first_name or user.username,
-                    'role': user.profile.get_role_display() if hasattr(user, 'profile') else '未知',
-                    'email': user.email or '待录入',
-                    'phone': '待录入',  # 可以扩展UserProfile模型添加电话字段
-                    'createdAt': user.date_joined.strftime('%Y-%m-%d')
-                } for user in users]
+                for user in users:
+                    users_data.append({
+                        'id': user.id,
+                        'username': user.username,
+                        'name': user.first_name or user.username,
+                        'role': user.profile.get_role_display() if hasattr(user, 'profile') else '未知',
+                        'email': user.email or '待录入',
+                        'phone': '待录入',  # 可以扩展UserProfile模型添加电话字段
+                        'createdAt': user.date_joined.strftime('%Y-%m-%d')
+                    })
+                
+                # 获取客户数据
+                guests = Guest.objects.all().select_related('room')
+                for guest in guests:
+                    users_data.append({
+                        'id': f'guest_{guest.id}',  # 添加前缀避免ID冲突
+                        'username': guest.name,
+                        'name': guest.name,
+                        'role': '客户',
+                        'email': '待录入',
+                        'phone': '待录入',
+                        'createdAt': guest.check_in_time.strftime('%Y-%m-%d')
+                    })
+                
+                data = users_data
             
             elif user_type == 'guests':
                 # 获取客户数据
@@ -415,8 +434,7 @@ class ManagerViewSet(viewsets.ViewSet):
                     'room': guest.room.room_number,
                     'id_number': guest.id_number,
                     'checkIn': guest.check_in_time.strftime('%Y-%m-%d %H:%M:%S'),
-                    'checkOut': guest.check_out_time.strftime('%Y-%m-%d %H:%M:%S') if guest.check_out_time else '-',
-                    'check_in_count': guest.check_in_count
+                    'checkOut': guest.check_out_time.strftime('%Y-%m-%d %H:%M:%S') if guest.check_out_time else '-'
                 } for guest in guests]
             
             elif user_type == 'staff':
@@ -439,66 +457,9 @@ class ManagerViewSet(viewsets.ViewSet):
             
             return Response(data)
         except Exception as e:
-            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-    
-    @action(detail=False, methods=['post'])
-    def merge_guest_accounts(self, request):
-        """合并姓名和身份证号相同的客户账号"""
-        try:
-            with transaction.atomic():
-                # 获取所有客户
-                guests = Guest.objects.all()
-                
-                # 创建一个字典来存储合并后的客户信息
-                merged_guests = {}
-                
-                # 遍历所有客户，根据姓名和身份证号进行分组
-                for guest in guests:
-                    key = f"{guest.name}_{guest.id_number}"
-                    
-                    if key in merged_guests:
-                        # 已存在相同姓名和身份证号的客户，更新入住次数
-                        merged_guests[key]['count'] += 1
-                        merged_guests[key]['ids'].append(guest.id)
-                    else:
-                        # 第一次遇到此客户
-                        merged_guests[key] = {
-                            'guest': guest,
-                            'count': 1,
-                            'ids': [guest.id]
-                        }
-                
-                # 处理合并
-                merged_count = 0
-                for key, data in merged_guests.items():
-                    if data['count'] > 1:
-                        # 需要合并的客户
-                        primary_guest = data['guest']
-                        primary_guest.check_in_count = data['count']
-                        primary_guest.save()
-                        
-                        # 删除重复的客户记录，保留主记录
-                        ids_to_delete = data['ids'][1:]  # 排除主记录ID
-                        Guest.objects.filter(id__in=ids_to_delete).delete()
-                        
-                        merged_count += len(ids_to_delete)
-                    else:
-                        # 设置入住次数为1
-                        guest = data['guest']
-                        guest.check_in_count = 1
-                        guest.save()
-                
-                return Response({
-                    'message': f'成功合并了 {merged_count} 个重复客户账号',
-                    'merged_count': merged_count
-                })
-                
-        except Exception as e:
             import traceback
             traceback.print_exc()
-            return Response({
-                'error': f'合并客户账号失败: {str(e)}'
-            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
     
     def get_user_statistics(self):
         """获取用户统计数据"""
